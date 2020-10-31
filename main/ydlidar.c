@@ -46,6 +46,95 @@ scanPoint point;
 
 struct my_node_info nodebuffer[100];
 
+// wait response header
+result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
+  int  recvPos = 0;
+  uint32_t startTs = millis();
+  uint8_t  *headerBuffer = (uint8_t *)(header);
+  uint32_t waitTime;
+
+  while (/*(waitTime = millis() - startTs) <= timeout*/ 1) {
+    // int currentbyte = _bined_serialdev->read();
+    int currentbyte;
+    // uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS);
+
+    if (uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
+      continue;
+    }
+
+    switch (recvPos) {
+    case 0:
+      if (currentbyte != LIDAR_ANS_SYNC_BYTE1) {
+        continue;
+      }
+
+      break;
+
+    case 1:
+      if (currentbyte != LIDAR_ANS_SYNC_BYTE2) {
+        recvPos = 0;
+        continue;
+      }
+
+      break;
+    }
+
+    headerBuffer[recvPos++] = currentbyte;
+    ESP_LOGI(TAG, "headerBuffer[%d] of %d", recvPos - 1, sizeof(lidar_ans_header));
+
+    if (recvPos == sizeof(lidar_ans_header)) {
+      return RESULT_OK;
+    }
+  }
+
+  return RESULT_TIMEOUT;
+}
+
+result_t getDeviceInfo(device_info &info, uint32_t timeout) {
+    result_t  ans;
+    uint8_t  recvPos = 0;
+    uint32_t currentTs = millis();
+    uint32_t remainingtime;
+    uint8_t *infobuf = (uint8_t *)&info;
+    lidar_ans_header response_header;
+
+    ESP_LOGI(TAG, "waitResponseHeader");
+    if ((ans = waitResponseHeader(&response_header, timeout)) != RESULT_OK) {
+        return ans;
+    }
+
+    if (response_header.type != LIDAR_ANS_TYPE_DEVINFO) {
+        return RESULT_FAIL;
+    }
+
+    if (response_header.size < sizeof(lidar_ans_header)) {
+        return RESULT_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Before while");
+    while (/*(remainingtime = millis() - currentTs) <= timeout*/1) {
+        if (uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
+            continue;
+        }
+
+        infobuf[recvPos++] = currentbyte;
+
+        if (recvPos == sizeof(device_info)) {
+            return RESULT_OK;
+        }
+    }
+
+  return RESULT_TIMEOUT;
+}
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 static void rx_task(void *arg)
 {
     esp_log_level_set(TAG, ESP_LOG_INFO);
@@ -55,7 +144,13 @@ static void rx_task(void *arg)
     float intensity = 0.0;
     float angle = 0.0;
 
-    // while (1) {
+    device_info deviceinfo;
+    getDeviceInfo(deviceinfo, 1000);
+    
+    ESP_LOGI(TAG, "!!!  device_info: model %d, %d", deviceinfo.firmware_version, deviceinfo.hardware_version);
+    return
+
+    while (1) { /// ????? should I do this?
         const int rxBytes = uart_read_bytes(UART_NUM_1, data, RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
         if (rxBytes > 0) {
             data[rxBytes] = 0;
@@ -90,7 +185,7 @@ static void rx_task(void *arg)
             
             
         }
-    // }
+    }
     free(data);
 };
 
@@ -150,7 +245,7 @@ void init() {
 
 void changePWM(uint8_t pwm) {
     YdlidarController.pwm_val=pwm;
-    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, (int)(20000 * pwm / 255));
+    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, (float)(pwm / 255.f));
 }
 
 
