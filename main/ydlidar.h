@@ -81,13 +81,13 @@ typedef enum {
   CT_Tail,
 } CT;
 
-struct node_info {
+typedef struct {
   uint8_t    sync_quality;
   uint16_t   angle_q6_checkbit;
   uint16_t   distance_q2;
-} __attribute__((packed)) ;
+} node_info;
 
-struct node_package {
+typedef struct {
   uint16_t  package_Head;
   uint8_t   package_CT;
   uint8_t   nowPackageNum;
@@ -95,53 +95,53 @@ struct node_package {
   uint16_t  packageLastSampleAngle;
   uint16_t  checkSum;
   uint16_t  packageSampleDistance[PackageSampleMaxLngth];
-} __attribute__((packed)) ;
+} node_package;
 
 
-struct device_info {
+typedef struct {
   uint8_t   model;
   uint16_t  firmware_version;
   uint8_t   hardware_version;
   uint8_t   serialnum[16];
-} __attribute__((packed)) ;
+} device_info ;
 
-struct device_health {
+typedef struct  {
   uint8_t   status;
   uint16_t  error_code;
-} __attribute__((packed))  ;
+} device_health;
 
-struct sampling_rate {
+typedef struct {
   uint8_t rate;
-} __attribute__((packed))  ;
+} sampling_rate;
 
-struct scan_frequency {
+typedef struct {
   uint32_t frequency;
-} __attribute__((packed))  ;
+} scan_frequency;
 
-struct scan_rotation {
+typedef struct {
   uint8_t rotation;
-} __attribute__((packed))  ;
+} scan_rotation;
 
-struct cmd_packet {
+typedef struct {
   uint8_t syncByte;
   uint8_t cmd_flag;
   uint8_t size;
   uint8_t data;
-} __attribute__((packed)) ;
+} cmd_packet ;
 
-struct lidar_ans_header {
+typedef struct {
   uint8_t  syncByte1;
   uint8_t  syncByte2;
   uint32_t size: 30;
   uint32_t subType: 2;
   uint8_t  type;
-} __attribute__((packed));
+} lidar_ans_header;
 
-struct scanPoint {
+typedef struct {
   uint8_t quality;
   float 	angle;
   float 	distance;
   bool    startBit;
-};
+} scanPoint;
 
 #endif

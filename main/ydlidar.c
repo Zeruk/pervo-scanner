@@ -2,6 +2,7 @@
 #include <stdio.h>
 // #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/uart.h"
@@ -49,13 +50,14 @@ struct my_node_info nodebuffer[100];
 // wait response header
 result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
   int  recvPos = 0;
-  uint32_t startTs = millis();
+//   uint32_t startTs = millis();
   uint8_t  *headerBuffer = (uint8_t *)(header);
-  uint32_t waitTime;
+//   uint32_t waitTime;
 
+  uint8_t* currentbyte = (uint8_t*) malloc(1);
   while (/*(waitTime = millis() - startTs) <= timeout*/ 1) {
     // int currentbyte = _bined_serialdev->read();
-    int currentbyte;
+    // uint8_t currentbyte;
     // uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS);
 
     if (uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
@@ -63,38 +65,39 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
     }
 
     switch (recvPos) {
-    case 0:
-      if (currentbyte != LIDAR_ANS_SYNC_BYTE1) {
-        continue;
-      }
+        case 0:
+        if (*currentbyte != LIDAR_ANS_SYNC_BYTE1) {
+            continue;
+        }
 
-      break;
+        break;
 
-    case 1:
-      if (currentbyte != LIDAR_ANS_SYNC_BYTE2) {
-        recvPos = 0;
-        continue;
-      }
+        case 1:
+        if (*currentbyte != LIDAR_ANS_SYNC_BYTE2) {
+            recvPos = 0;
+            continue;
+        }
 
-      break;
+        break;
     }
 
-    headerBuffer[recvPos++] = currentbyte;
-    ESP_LOGI(TAG, "headerBuffer[%d] of %d", recvPos - 1, sizeof(lidar_ans_header));
+    headerBuffer[recvPos++] = *currentbyte;
+    ESP_LOGI(TAG, "headerBuffer[%d] of %d, %04x, %p", recvPos - 1, sizeof(lidar_ans_header), *currentbyte, currentbyte);
 
     if (recvPos == sizeof(lidar_ans_header)) {
+        free(currentbyte);
       return RESULT_OK;
     }
   }
-
+  free(currentbyte);
   return RESULT_TIMEOUT;
-}
+};
 
-result_t getDeviceInfo(device_info &info, uint32_t timeout) {
+result_t getDeviceInfo(device_info *info, uint32_t timeout) {
     result_t  ans;
     uint8_t  recvPos = 0;
-    uint32_t currentTs = millis();
-    uint32_t remainingtime;
+    // uint32_t currentTs = millis();
+    // uint32_t remainingtime;
     uint8_t *infobuf = (uint8_t *)&info;
     lidar_ans_header response_header;
 
@@ -112,14 +115,16 @@ result_t getDeviceInfo(device_info &info, uint32_t timeout) {
     }
 
     ESP_LOGI(TAG, "Before while");
+    uint8_t* currentbyte = (uint8_t*) malloc(1);
     while (/*(remainingtime = millis() - currentTs) <= timeout*/1) {
         if (uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
             continue;
         }
 
-        infobuf[recvPos++] = currentbyte;
+        infobuf[recvPos++] = *currentbyte;
 
         if (recvPos == sizeof(device_info)) {
+            free(currentbyte);
             return RESULT_OK;
         }
     }
@@ -127,6 +132,264 @@ result_t getDeviceInfo(device_info &info, uint32_t timeout) {
   return RESULT_TIMEOUT;
 }
 
+
+result_t startScan(bool force, uint32_t timeout) {
+  result_t ans;
+
+    lidar_ans_header response_header;
+
+    if ((ans = waitResponseHeader(&response_header, timeout)) != RESULT_OK) {
+      return ans;
+    }
+
+    if (response_header.type != LIDAR_ANS_TYPE_MEASUREMENT) {
+        ESP_LOGI(TAG, "Read %d bytes'", response_header.type);
+        return RESULT_FAIL;
+    }
+
+    if (response_header.size < sizeof(node_info)) {
+      return RESULT_FAIL;
+    }
+  return RESULT_OK;
+}
+
+// wait scan data
+result_t waitScanDot(uint32_t timeout) {
+  int recvPos = 0;
+//   uint32_t startTs = millis();
+//   uint32_t waitTime;
+  uint8_t nowPackageNum;
+  node_info node;
+  static node_package package;
+  static uint16_t package_Sample_Index = 0;
+  static float IntervalSampleAngle = 0;
+  static float IntervalSampleAngle_LastPackage = 0;
+  static uint16_t FirstSampleAngle = 0;
+  static uint16_t LastSampleAngle = 0;
+  static uint16_t CheckSum = 0;
+
+  static uint16_t CheckSumCal = 0;
+  static uint16_t SampleNumlAndCTCal = 0;
+  static uint16_t LastSampleAngleCal = 0;
+  static bool CheckSumResult = true;
+  static uint16_t Valu8Tou16 = 0;
+
+  uint8_t *packageBuffer = (uint8_t *)&package.package_Head;
+  uint8_t  package_Sample_Num = 0;
+  int32_t AngleCorrectForDistance;
+
+  int  package_recvPos = 0;
+
+  if (package_Sample_Index == 0) {
+    recvPos = 0;
+
+    while (1) { //(waitTime = millis() - startTs) <= timeout) {
+      uint8_t* currentByte = (uint8_t*) malloc(1);
+      if (uart_read_bytes(UART_NUM_1, currentByte, 1, 1000 / portTICK_RATE_MS) < 0) {
+        continue;
+      }
+
+      switch (recvPos) {
+      case 0:
+        if (*currentByte != (PH & 0xFF)) {
+          continue;
+        }
+
+        break;
+
+      case 1:
+        CheckSumCal = PH;
+
+        if (*currentByte != (PH >> 8)) {
+          recvPos = 0;
+          continue;
+        }
+
+        break;
+
+      case 2:
+        SampleNumlAndCTCal = *currentByte;
+
+        if (((*currentByte&0x01) != CT_Normal) && ((*currentByte & 0x01) != CT_RingStart)) {
+          recvPos = 0;
+          continue;
+        }
+
+        break;
+
+      case 3:
+        SampleNumlAndCTCal += (*currentByte << LIDAR_RESP_MEASUREMENT_ANGLE_SAMPLE_SHIFT);
+        package_Sample_Num = *currentByte;
+        break;
+
+      case 4:
+        if (*currentByte & LIDAR_RESP_MEASUREMENT_CHECKBIT) {
+          FirstSampleAngle = *currentByte;
+        } else {
+          recvPos = 0;
+          continue;
+        }
+
+        break;
+
+      case 5:
+        FirstSampleAngle += (*currentByte << LIDAR_RESP_MEASUREMENT_ANGLE_SAMPLE_SHIFT);
+        CheckSumCal ^= FirstSampleAngle;
+        FirstSampleAngle = FirstSampleAngle >> 1;
+        break;
+
+      case 6:
+        if (*currentByte & LIDAR_RESP_MEASUREMENT_CHECKBIT) {
+          LastSampleAngle = *currentByte;
+        } else {
+          recvPos = 0;
+          continue;
+        }
+
+        break;
+
+      case 7:
+        LastSampleAngle += (*currentByte << LIDAR_RESP_MEASUREMENT_ANGLE_SAMPLE_SHIFT);
+        LastSampleAngleCal = LastSampleAngle;
+        LastSampleAngle = LastSampleAngle >> 1;
+
+        if (package_Sample_Num == 1) {
+          IntervalSampleAngle = 0;
+        } else {
+          if (LastSampleAngle < FirstSampleAngle) {
+            if ((FirstSampleAngle > 17280) && (LastSampleAngle < 5760)) {
+              IntervalSampleAngle = ((float)(23040 + LastSampleAngle - FirstSampleAngle)) /
+                                    (package_Sample_Num - 1);
+              IntervalSampleAngle_LastPackage = IntervalSampleAngle;
+            } else {
+              IntervalSampleAngle = IntervalSampleAngle_LastPackage;
+            }
+          } else {
+            IntervalSampleAngle = ((float)(LastSampleAngle - FirstSampleAngle)) / (package_Sample_Num - 1);
+            IntervalSampleAngle_LastPackage = IntervalSampleAngle;
+          }
+        }
+
+        break;
+
+      case 8:
+        CheckSum = *currentByte;
+        break;
+
+      case 9:
+        CheckSum += (*currentByte << LIDAR_RESP_MEASUREMENT_ANGLE_SAMPLE_SHIFT);
+        break;
+      }
+
+      packageBuffer[recvPos++] = *currentByte;
+
+      if (recvPos  == PackagePaidBytes) {
+        package_recvPos = recvPos;
+        break;
+
+      }
+    }
+
+    if (PackagePaidBytes == recvPos) {
+    //   startTs = millis();
+      recvPos = 0;
+      int package_sample_sum = package_Sample_Num << 1;
+
+      while (1) { //(waitTime = millis() - startTs) <= timeout) {
+        uint8_t* currentByte = (uint8_t*) malloc(1);
+        if (uart_read_bytes(UART_NUM_1, currentByte, 1, 1000 / portTICK_RATE_MS) < 0) {
+          continue;
+        }
+
+        if ((recvPos & 1) == 1) {
+          Valu8Tou16 += (*currentByte << LIDAR_RESP_MEASUREMENT_ANGLE_SAMPLE_SHIFT);
+          CheckSumCal ^= Valu8Tou16;
+        } else {
+          Valu8Tou16 = *currentByte;
+        }
+
+        packageBuffer[package_recvPos + recvPos] = *currentByte;
+        recvPos++;
+
+        if (package_sample_sum == recvPos) {
+          package_recvPos += recvPos;
+          break;
+        }
+      }
+
+      if (package_sample_sum != recvPos) {
+        return RESULT_FAIL;
+      }
+    } else {
+      return RESULT_FAIL;
+    }
+
+    CheckSumCal ^= SampleNumlAndCTCal;
+    CheckSumCal ^= LastSampleAngleCal;
+
+    if (CheckSumCal != CheckSum) {
+      CheckSumResult = false;
+    } else {
+      CheckSumResult = true;
+    }
+
+  }
+
+  uint8_t package_CT;
+  package_CT = package.package_CT;
+
+  if ((package_CT&0x01) == CT_Normal) {
+    node.sync_quality = Node_Default_Quality + Node_NotSync;
+  } else {
+    node.sync_quality = Node_Default_Quality + Node_Sync;
+  }
+
+  if (CheckSumResult == true) {
+    node.distance_q2 = package.packageSampleDistance[package_Sample_Index];
+
+    if (node.distance_q2 / 4 != 0) {
+      AngleCorrectForDistance = (int32_t)((atan(((21.8 * (155.3 - (node.distance_q2 * 0.25f))) /
+                                           155.3) / (node.distance_q2 * 0.25f))) * 3666.93);
+    } else {
+      AngleCorrectForDistance = 0;
+    }
+
+    float sampleAngle = IntervalSampleAngle * package_Sample_Index;
+
+    if ((FirstSampleAngle + sampleAngle + AngleCorrectForDistance) < 0) {
+      node.angle_q6_checkbit = (((uint16_t)(FirstSampleAngle + sampleAngle + AngleCorrectForDistance +
+                                            23040)) << LIDAR_RESP_MEASUREMENT_ANGLE_SHIFT) + LIDAR_RESP_MEASUREMENT_CHECKBIT;
+    } else {
+      if ((FirstSampleAngle + sampleAngle + AngleCorrectForDistance) > 23040) {
+        node.angle_q6_checkbit = ((uint16_t)((FirstSampleAngle + sampleAngle + AngleCorrectForDistance -
+                                              23040)) << LIDAR_RESP_MEASUREMENT_ANGLE_SHIFT) + LIDAR_RESP_MEASUREMENT_CHECKBIT;
+      } else {
+        node.angle_q6_checkbit = ((uint16_t)((FirstSampleAngle + sampleAngle + AngleCorrectForDistance)) <<
+                                  LIDAR_RESP_MEASUREMENT_ANGLE_SHIFT) + LIDAR_RESP_MEASUREMENT_CHECKBIT;
+      }
+    }
+  } else {
+    node.sync_quality = Node_Default_Quality + Node_NotSync;
+    node.angle_q6_checkbit = LIDAR_RESP_MEASUREMENT_CHECKBIT;
+    node.distance_q2 = 0;
+    package_Sample_Index = 0;
+    return RESULT_FAIL;
+  }
+
+  point.distance = node.distance_q2 * 0.25f;
+  point.angle = (node.angle_q6_checkbit >> LIDAR_RESP_MEASUREMENT_ANGLE_SHIFT) / 64.0f;
+  point.quality = (node.sync_quality >> LIDAR_RESP_MEASUREMENT_QUALITY_SHIFT);
+  point.startBit = (node.sync_quality & LIDAR_RESP_MEASUREMENT_SYNCBIT);
+
+  package_Sample_Index++;
+  nowPackageNum = package.nowPackageNum;
+
+  if (package_Sample_Index >= nowPackageNum) {
+    package_Sample_Index = 0;
+  }
+
+  return RESULT_OK;
+}
 
 
 
@@ -144,11 +407,35 @@ static void rx_task(void *arg)
     float intensity = 0.0;
     float angle = 0.0;
 
-    device_info deviceinfo;
+    /// Get device info
+    device_info* deviceinfo = (device_info*) malloc(1);
     getDeviceInfo(deviceinfo, 1000);
     
-    ESP_LOGI(TAG, "!!!  device_info: model %d, %d", deviceinfo.firmware_version, deviceinfo.hardware_version);
-    return
+    uint16_t maxv = (uint16_t)(deviceinfo->firmware_version>>8);
+    uint16_t midv = (uint16_t)(deviceinfo->firmware_version&0xff)/10;
+    uint16_t minv = (uint16_t)(deviceinfo->firmware_version&0xff)%10;
+    if(midv==0){
+        midv = minv;
+        minv = 0;
+    }
+    
+    ESP_LOGI(TAG, "!!!  device_info: model %d, v%d.%d.%d, hv:%d", deviceinfo->model,maxv, midv, minv, deviceinfo->hardware_version);
+    // Strange version
+    
+    /// startScan
+    startScan(false, 1000);
+    while(1){
+        if (lidar.waitScanDot() == RESULT_OK) {
+            float distance = lidar.getCurrentScanPoint().distance; //distance value in mm unit
+            float angle    = lidar.getCurrentScanPoint().angle; //anglue value in degree
+            byte  quality  = lidar.getCurrentScanPoint().quality; //quality of the current measurement
+	        // bool  startBit = lidar.getCurrentScanPoint().startBit;
+            ESP_LOGI(TAG, "Read current angle: %f, distance: %f", angle, distance);
+      }else{
+         Serial.println(" YDLIDAR get Scandata fialed!!");
+      }
+    }
+    return;
 
     while (1) { /// ????? should I do this?
         const int rxBytes = uart_read_bytes(UART_NUM_1, data, RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
