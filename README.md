@@ -1,5 +1,3 @@
-# Hello World Example
+# Pervo Scanner
 
-Starts a FreeRTOS task to print "Hello World"
-
-See the README.md file in the upper level 'examples' directory for more information about examples.
+Starts a FreeRTOS with PWM management for YDLidar and it's protocol parcing
