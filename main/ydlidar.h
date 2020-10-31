@@ -13,7 +13,7 @@
 // dummy for uart init
 #define YDLIDAR_TXD  19
 
-struct ydlidar {
+struct ydlidarController {
     uint8_t pwm_val;
 
     void (*init)(void);
@@ -22,6 +22,6 @@ struct ydlidar {
     // void step(int dir=1);
 };
 
-extern struct ydlidar Ydlidar;
+extern struct ydlidarController YdlidarController;
 
 #endif

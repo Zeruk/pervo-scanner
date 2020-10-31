@@ -61,29 +61,29 @@ void app_main(void)
     // }
     //////////////////////////////////////////////////////
     // check if ydlidar working
-    Ydlidar.init();
+    YdlidarController.init();
     while (1)
     {
         printf("Set PWM to %d, ", 255);
         fflush(stdout);
-        Ydlidar.changePWM(255);
+        YdlidarController.changePWM(255);
         vTaskDelay(5000 / portTICK_PERIOD_MS);
-        printf("Set PWM to %d, ", 190);
-        fflush(stdout);
-        Ydlidar.changePWM(190);
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-        printf("Set PWM to %d, ", 128);
-        fflush(stdout);
-        Ydlidar.changePWM(128);
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-        printf("Set PWM to %d, ", 64);
-        fflush(stdout);
-        Ydlidar.changePWM(64);
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-        printf("Set PWM to %d, ", 0);
-        fflush(stdout);
-        Ydlidar.changePWM(0);
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        // printf("Set PWM to %d, ", 190);
+        // fflush(stdout);
+        // YdlidarController.changePWM(190);
+        // vTaskDelay(5000 / portTICK_PERIOD_MS);
+        // printf("Set PWM to %d, ", 128);
+        // fflush(stdout);
+        // YdlidarController.changePWM(128);
+        // vTaskDelay(5000 / portTICK_PERIOD_MS);
+        // printf("Set PWM to %d, ", 64);
+        // fflush(stdout);
+        // YdlidarController.changePWM(64);
+        // vTaskDelay(5000 / portTICK_PERIOD_MS);
+        // printf("Set PWM to %d, ", 0);
+        // fflush(stdout);
+        // YdlidarController.changePWM(0);
+        // vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
     
 

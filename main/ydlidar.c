@@ -13,18 +13,26 @@
 #include "soc/mcpwm_periph.h"
 
 
+void init();
+
+void changePWM(uint8_t pwm);
+
 
 static const char* TAG = "uart_YDLIDAR";
-struct ydlidar Ydlidar;
+struct ydlidarController YdlidarController = {
+    .pwm_val = 0,
+    .init = init,
+    .changePWM = changePWM,
+};
 static const int RX_BUF_SIZE = 1024;
 
-double min_angle = angles::from_degrees(-180.f)
-double max_angle = angles::from_degrees(180.f)
+// double min_angle = angles::from_degrees(-180.f);
+// double max_angle = angles::from_degrees(180.f);
 
 
 // https://github.com/YDLIDAR/sdk/blob/master/include/ydlidar_protocol.h
 // https://github.com/YDLIDAR/sdk/blob/master/src/CYdLidar.cpp#L210
-struct node_info {
+struct my_node_info {
   uint8_t    sync_flag;  //sync flag
   uint16_t   sync_quality; //!信号质量
   uint16_t   angle_q6_checkbit; //!测距点角度
@@ -35,7 +43,7 @@ struct node_info {
   uint8_t    index;
 };
 
-struct node_info nodebuffer[100];
+struct my_node_info nodebuffer[100];
 
 static void rx_task(void *arg)
 {
@@ -53,8 +61,8 @@ static void rx_task(void *arg)
             ESP_LOGI(TAG, "Read %d bytes'", rxBytes);
             // ESP_LOG_BUFFER_HEXDUMP(TAG, data, rxBytes, ESP_LOG_INFO);
             // COPY to struct
-            countStructs = (int)(rxBytes / sizeof(struct node_info));
-            memcpy(nodebuffer, data, countStructs * sizeof(struct node_info));
+            countStructs = (int)(rxBytes / sizeof(struct my_node_info));
+            memcpy(nodebuffer, data, countStructs * sizeof(struct my_node_info));
             // ESP_LOGI(TAG, "Readed point: %d %d %d %d ll %d %d", 
             //     nodebuffer[1].sync_flag, 
             //     nodebuffer[1].sync_quality, 
@@ -72,18 +80,18 @@ static void rx_task(void *arg)
                 angle = angles::from_degrees(angle);
                 angle = angles::normalize_angle(angle);
 
-                if (angle >= min_angle &&
-                        angle <= max_angle) {
-                    printf("%d %f %f \n", intensity, angle, range);
+                // if (angle >= min_angle &&
+                //         angle <= max_angle) {
+                    printf("%f %f %f \n", intensity, angle, range);
                     // can push into resulting array
-                }
+                // }
             }
             
             
         }
     }
     free(data);
-}
+};
 
 void configurePWM() {
     //// from mcpwm_servo_control
@@ -104,7 +112,7 @@ void configurePWM() {
     // 20ms - full period
     // 10ms - half (50%)
     mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 10000);
-}
+};
 
 void configureUART() {
     //// from uart_async_rxtxtasks
@@ -124,7 +132,7 @@ void configureUART() {
 
     // Listen on UART
     xTaskCreate(rx_task, "ydlidar_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
-}
+};
 
 void init() { 
     ///////// CONFIGURE PWM /////////
@@ -135,13 +143,13 @@ void init() {
 }
 
 void changePWM(uint8_t pwm) {
-    Ydlidar.pwm_val=pwm;
+    YdlidarController.pwm_val=pwm;
     mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, (int)(20000 * pwm / 255));
 }
 
 
-struct ydlidar Ydlidar = {
-    .pwm_val = 0,
-    .init = init,
-    .changePWM = changePWM,
-};
+// struct ydlidarController YdlidarController = {
+//     .pwm_val = 0,
+//     .init = init,
+//     .changePWM = changePWM,
+// };
