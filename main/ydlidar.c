@@ -425,14 +425,14 @@ static void rx_task(void *arg)
     /// startScan
     startScan(false, 1000);
     while(1){
-        if (lidar.waitScanDot() == RESULT_OK) {
-            float distance = lidar.getCurrentScanPoint().distance; //distance value in mm unit
-            float angle    = lidar.getCurrentScanPoint().angle; //anglue value in degree
-            byte  quality  = lidar.getCurrentScanPoint().quality; //quality of the current measurement
-	        // bool  startBit = lidar.getCurrentScanPoint().startBit;
-            ESP_LOGI(TAG, "Read current angle: %f, distance: %f", angle, distance);
+        if (waitScanDot(1000) == RESULT_OK) {
+            float distance = point.distance; //distance value in mm unit
+            float angle    = point.angle; //anglue value in degree
+            uint8_t  quality  = point.quality; //quality of the current measurement
+	        // bool  startBit = point.startBit;
+            ESP_LOGI(TAG, "Read current angle: %f, distance: %f, quality: %d", angle, distance, quality);
       }else{
-         Serial.println(" YDLIDAR get Scandata fialed!!");
+         ESP_LOGI(TAG, "YDLIDAR get Scandata fialed!!");
       }
     }
     return;

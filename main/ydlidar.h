@@ -144,4 +144,7 @@ typedef struct {
   bool    startBit;
 } scanPoint;
 
+
+scanPoint point;
+
 #endif
