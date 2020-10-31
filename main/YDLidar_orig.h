@@ -1,32 +1,16 @@
-// uln2003.h
+/*
+ * YDLIDAR Driver for Arduino
+ * eaibot.com
+ *
+ * Copyright (c) 2018, EAI
+ * All rights reserved.
+ */
 
-#ifndef YDLIDAR_H_
-#define YDLIDAR_H_
+#pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
-
+#include "Arduino.h"
 #include "inc/v8stdint.h"
 
-#define YDLIDAR_PWM 14
-#define YDLIDAR_DATA 13
-#define YDLIDAR_UART_SPEED 115200
-#define YDLIDAR_BUF_SIZE (1024)
-
-// dummy for uart init
-#define YDLIDAR_TXD  19
-
-struct ydlidarController {
-    uint8_t pwm_val;
-
-    void (*init)(void);
-    // void init();
-    void (*changePWM)(uint8_t pwm);
-    // void step(int dir=1);
-};
-
-extern struct ydlidarController YdlidarController;
-///////////////////////////////////////////////////// MINE ENDED ////////////////////////////////////////////////
 
 #define LIDAR_CMD_STOP                      0x65
 #define LIDAR_CMD_SCAN                      0x60
@@ -144,4 +128,60 @@ struct scanPoint {
   bool    startBit;
 };
 
+
+#if defined(_WIN32)
+#pragma pack(1)
 #endif
+
+
+//YDLidar class
+class YDLidar {
+ public:
+  enum {
+    SERIAL_BAUDRATE = 115200,
+    DEFAULT_TIMEOUT = 500,
+  };
+  //construct
+  YDLidar();
+  //destructor
+  ~YDLidar();
+
+  // open the given serial interface and try to connect to the YDLIDAR
+  bool begin(HardwareSerial &serialobj, uint32_t baudrate = SERIAL_BAUDRATE);
+
+  // close the currently opened serial interface
+  void end(void);
+
+  // check whether the serial interface is opened
+  bool isOpen(void);
+
+  // ask the YDLIDAR for its health info
+  result_t getHealth(device_health &health, uint32_t timeout = DEFAULT_TIMEOUT);
+
+  // ask the YDLIDAR for its device info like the serial number
+  result_t getDeviceInfo(device_info &info, uint32_t timeout = DEFAULT_TIMEOUT);
+
+  // stop the scanPoint operation
+  result_t stop(void);
+
+  // start the scanPoint operation
+  result_t startScan(bool force = false, uint32_t timeout = DEFAULT_TIMEOUT * 2);
+
+  // wait for one sample package to arrive
+  result_t waitScanDot(uint32_t timeout = DEFAULT_TIMEOUT);
+
+  // retrieve currently received sample point
+  const scanPoint &getCurrentScanPoint(void) {
+    return point;
+  }
+
+ protected:
+  // send ask commond to YDLIDAR
+  result_t sendCommand(uint8_t cmd, const void *payload = NULL, size_t payloadsize = 0);
+  //wait for response header to arrive
+  result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout = DEFAULT_TIMEOUT);
+
+ protected:
+  HardwareSerial *_bined_serialdev;
+  scanPoint point;
+};

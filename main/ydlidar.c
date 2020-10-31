@@ -1,5 +1,4 @@
 #include "ydlidar.h"
-#include "angles.h"
 #include <stdio.h>
 // #include <stdlib.h>
 #include <string.h>
@@ -43,6 +42,8 @@ struct my_node_info {
   uint8_t    index;
 };
 
+scanPoint point;
+
 struct my_node_info nodebuffer[100];
 
 static void rx_task(void *arg)
@@ -54,7 +55,7 @@ static void rx_task(void *arg)
     float intensity = 0.0;
     float angle = 0.0;
 
-    while (1) {
+    // while (1) {
         const int rxBytes = uart_read_bytes(UART_NUM_1, data, RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
         if (rxBytes > 0) {
             data[rxBytes] = 0;
@@ -77,8 +78,8 @@ static void rx_task(void *arg)
                 range = (float)(nodebuffer[i].distance_q2 / 4000.f);
 
                 angle = (float)((nodebuffer[i].angle_q6_checkbit >> 1) / 64.0f);
-                angle = angles::from_degrees(angle);
-                angle = angles::normalize_angle(angle);
+                // angle = angles::from_degrees(angle);
+                // angle = angles::normalize_angle(angle);
 
                 // if (angle >= min_angle &&
                 //         angle <= max_angle) {
@@ -89,7 +90,7 @@ static void rx_task(void *arg)
             
             
         }
-    }
+    // }
     free(data);
 };
 
@@ -102,7 +103,7 @@ void configurePWM() {
     //2. initial mcpwm configuration
     printf("Configuring Initial Parameters of mcpwm......\n");
     mcpwm_config_t pwm_config;
-    pwm_config.frequency = 50;    //frequency = 50Hz, i.e. period should be 20ms
+    pwm_config.frequency = 10000;    //frequency = 10kHz
     pwm_config.cmpr_a = 0;    //duty cycle of PWMxA = 0
     pwm_config.cmpr_b = 0;    //duty cycle of PWMxb = 0
     pwm_config.counter_mode = MCPWM_UP_COUNTER;
@@ -111,7 +112,8 @@ void configurePWM() {
 
     // 20ms - full period
     // 10ms - half (50%)
-    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 10000);
+    // mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 100);
+    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 100);
 };
 
 void configureUART() {
@@ -129,17 +131,21 @@ void configureUART() {
     uart_driver_install(UART_NUM_1, RX_BUF_SIZE * 2, 0, 0, NULL, 0);
     uart_param_config(UART_NUM_1, &uart_config);
     uart_set_pin(UART_NUM_1, YDLIDAR_TXD, YDLIDAR_DATA, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-
-    // Listen on UART
-    xTaskCreate(rx_task, "ydlidar_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
 };
 
 void init() { 
     ///////// CONFIGURE PWM /////////
     configurePWM();
 
+    ///////// CONFIGURE YDLIDAR /////////
+    point.distance = 0;
+    point.angle = 0;
+    point.quality = 0;
+
     ////////// CONFIGURE UART ///////////
     configureUART();
+    // Listen on UART
+    xTaskCreate(rx_task, "ydlidar_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
 }
 
 void changePWM(uint8_t pwm) {
