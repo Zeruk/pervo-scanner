@@ -13,15 +13,17 @@
 #include "soc/mcpwm_periph.h"
 
 
-void init();
+void initLIDAR();
+void stopLIDAR();
 
-void changePWM(uint8_t pwm);
+void changePWM(float pwm);
 
 
 static const char* TAG = "uart_YDLIDAR";
 struct ydlidarController YdlidarController = {
     .pwm_val = 0,
-    .init = init,
+    .init = initLIDAR,
+    .stop = stopLIDAR,
     .changePWM = changePWM,
 };
 static const int RX_BUF_SIZE = 1024;
@@ -50,17 +52,20 @@ struct my_node_info nodebuffer[100];
 // wait response header
 result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
   int  recvPos = 0;
-//   uint32_t startTs = millis();
+  uint32_t startTs = esp_timer_get_time()/1000;
   uint8_t  *headerBuffer = (uint8_t *)(header);
-//   uint32_t waitTime;
+  uint32_t waitTime;
+  int counter = 0;
 
   uint8_t* currentbyte = (uint8_t*) malloc(1);
-  while (/*(waitTime = millis() - startTs) <= timeout*/ 1) {
+  while ((waitTime = esp_timer_get_time()/1000 - startTs) <= timeout) {
+    counter++;
     // int currentbyte = _bined_serialdev->read();
     // uint8_t currentbyte;
     // uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS);
 
     if (uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
+      ESP_LOGE(TAG, "Empty uart");
       continue;
     }
 
@@ -82,7 +87,7 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
     }
 
     headerBuffer[recvPos++] = *currentbyte;
-    ESP_LOGI(TAG, "headerBuffer[%d] of %d, %04x, %p", recvPos - 1, sizeof(lidar_ans_header), *currentbyte, currentbyte);
+    // ESP_LOGI(TAG, "headerBuffer[%d] of %d, %04x", recvPos - 1, sizeof(lidar_ans_header), *currentbyte);
 
     if (recvPos == sizeof(lidar_ans_header)) {
         free(currentbyte);
@@ -90,14 +95,15 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
     }
   }
   free(currentbyte);
+  ESP_LOGI(TAG, "counter: %d", counter);
   return RESULT_TIMEOUT;
 };
 
 result_t getDeviceInfo(device_info *info, uint32_t timeout) {
     result_t  ans;
     uint8_t  recvPos = 0;
-    // uint32_t currentTs = millis();
-    // uint32_t remainingtime;
+    uint32_t currentTs = esp_timer_get_time()/1000;
+    uint32_t remainingtime;
     uint8_t *infobuf = (uint8_t *)&info;
     lidar_ans_header response_header;
 
@@ -116,7 +122,7 @@ result_t getDeviceInfo(device_info *info, uint32_t timeout) {
 
     ESP_LOGI(TAG, "Before while");
     uint8_t* currentbyte = (uint8_t*) malloc(1);
-    while (/*(remainingtime = millis() - currentTs) <= timeout*/1) {
+    while ((remainingtime = esp_timer_get_time()/1000 - currentTs) <= timeout) {
         if (uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
             continue;
         }
@@ -143,7 +149,7 @@ result_t startScan(bool force, uint32_t timeout) {
     }
 
     if (response_header.type != LIDAR_ANS_TYPE_MEASUREMENT) {
-        ESP_LOGI(TAG, "Read %d bytes'", response_header.type);
+        ESP_LOGI(TAG, "Response_header.type = %d", response_header.type);
         return RESULT_FAIL;
     }
 
@@ -156,8 +162,8 @@ result_t startScan(bool force, uint32_t timeout) {
 // wait scan data
 result_t waitScanDot(uint32_t timeout) {
   int recvPos = 0;
-//   uint32_t startTs = millis();
-//   uint32_t waitTime;
+  uint32_t startTs = esp_timer_get_time()/1000;
+  uint32_t waitTime;
   uint8_t nowPackageNum;
   node_info node;
   static node_package package;
@@ -183,9 +189,10 @@ result_t waitScanDot(uint32_t timeout) {
   if (package_Sample_Index == 0) {
     recvPos = 0;
 
-    while (1) { //(waitTime = millis() - startTs) <= timeout) {
+    while ((waitTime = (esp_timer_get_time()/1000 - startTs)) <= timeout) {
       uint8_t* currentByte = (uint8_t*) malloc(1);
       if (uart_read_bytes(UART_NUM_1, currentByte, 1, 1000 / portTICK_RATE_MS) < 0) {
+        vTaskDelay(5 / portTICK_PERIOD_MS);
         continue;
       }
 
@@ -403,48 +410,61 @@ static void rx_task(void *arg)
     esp_log_level_set(TAG, ESP_LOG_INFO);
     char* fileBuffer = (char*) malloc(FILEBUFFER_LEN);
     char* strBuffer = (char*) malloc(100);
-    uint8_t countStructs = 0;
     float range = 0.0;
-    float intensity = 0.0;
+    uint8_t intensity = 0.0;
     float angle = 0.0;
 
-    /// Get device info
-    device_info* deviceinfo = (device_info*) malloc(1);
-    getDeviceInfo(deviceinfo, 1000);
-    
-    uint16_t maxv = (uint16_t)(deviceinfo->firmware_version>>8);
-    uint16_t midv = (uint16_t)(deviceinfo->firmware_version&0xff)/10;
-    uint16_t minv = (uint16_t)(deviceinfo->firmware_version&0xff)%10;
-    if(midv==0){
-        midv = minv;
-        minv = 0;
-    }
-    
-    ESP_LOGI(TAG, "!!!  device_info: model %d, v%d.%d.%d, hv:%d", deviceinfo->model,maxv, midv, minv, deviceinfo->hardware_version);
-    // Strange version
-    
     /// startScan
-    startScan(false, 1000);
-    while(1){
-        vTaskDelay(1 / portTICK_PERIOD_MS);
-        if (waitScanDot(1000) == RESULT_OK) {
-            float distance = point.distance; //distance value in mm unit
-            float angle    = point.angle; //anglue value in degree
-            uint8_t  quality  = point.quality; //quality of the current measurement
-	        // bool  startBit = point.startBit;
-            // ESP_LOGI(TAG, "Read current angle: %f, distance: %f, quality: %d", angle, distance, quality);
-            if(strlen(fileBuffer) > FILEBUFFER_LEN - 40) {
-              printf("================= Write to SDCard: =============================\n%s", fileBuffer);
-              YdlidarController.fileWriteFunction(fileBuffer);
-              fileBuffer[0] = '\0';
-            }
-            sprintf(strBuffer, "%f %f %d\n", angle, distance, quality);
-            strcat(fileBuffer, strBuffer);
-      }else{
-         ESP_LOGI(TAG, "YDLIDAR get Scandata fialed!!");
+    while (1) {
+      uart_flush(UART_NUM_1);
+      /// Get device info
+      device_info* deviceinfo = (device_info*) malloc(1);
+      if(getDeviceInfo(deviceinfo, 1000) != RESULT_OK) {
+        ESP_LOGE(TAG, "Didn't get device info");
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+        continue;
+      }
+      
+      uint16_t maxv = (uint16_t)(deviceinfo->firmware_version>>8);
+      uint16_t midv = (uint16_t)(deviceinfo->firmware_version&0xff)/10;
+      uint16_t minv = (uint16_t)(deviceinfo->firmware_version&0xff)%10;
+      if(midv==0){
+          midv = minv;
+          minv = 0;
+      }
+      
+      ESP_LOGI(TAG, "!!!  device_info: model %d, v%d.%d.%d, hv:%d", deviceinfo->model,maxv, midv, minv, deviceinfo->hardware_version);
+      // Strange version
+
+
+      if(startScan(false, 1000) != RESULT_OK) {
+        ESP_LOGE(TAG, "Didn't started scan");
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+        continue;
+      }
+
+      while(1) {
+          vTaskDelay(1 / portTICK_PERIOD_MS);
+          if (waitScanDot(1000) == RESULT_OK) {
+              range     = point.distance; //distance value in mm unit
+              angle     = point.angle; //anglue value in degree
+              intensity = point.quality; //quality of the current measurement
+            // bool  startBit = point.startBit;
+              // ESP_LOGI(TAG, "Read current angle: %f, distance: %f, quality: %d", angle, distance, quality);
+              if(strlen(fileBuffer) > FILEBUFFER_LEN - 40) {
+                // printf("================= Write to SDCard: =============================\n%s", fileBuffer);
+                ESP_LOGI(TAG, "Write fileBuffer to SDCard");
+                YdlidarController.fileWriteFunction(fileBuffer);
+                fileBuffer[0] = '\0';
+              }
+              sprintf(strBuffer, "%f %f %d\n", angle, range, intensity);
+              strcat(fileBuffer, strBuffer);
+              vTaskDelay(10 / portTICK_PERIOD_MS); // for background processes
+        }else{
+          ESP_LOGI(TAG, "YDLIDAR get Scandata fialed!!");
+        }
       }
     }
-    return;
 };
 
 void configurePWM() {
@@ -457,8 +477,8 @@ void configurePWM() {
     printf("Configuring Initial Parameters of mcpwm......\n");
     mcpwm_config_t pwm_config;
     pwm_config.frequency = 10000;    //frequency = 10kHz
-    pwm_config.cmpr_a = 0;    //duty cycle of PWMxA = 0
-    pwm_config.cmpr_b = 0;    //duty cycle of PWMxb = 0
+    pwm_config.cmpr_a = 50;    //duty cycle of PWMxA = 0
+    pwm_config.cmpr_b = 50;    //duty cycle of PWMxb = 0
     pwm_config.counter_mode = MCPWM_UP_COUNTER;
     pwm_config.duty_mode = MCPWM_DUTY_MODE_0;
     mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &pwm_config);    //Configure PWM0A & PWM0B with above settings
@@ -486,7 +506,10 @@ void configureUART() {
     uart_set_pin(UART_NUM_1, YDLIDAR_TXD, YDLIDAR_DATA, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 };
 
-void init() { 
+
+TaskHandle_t ydlidarRXTaskHandle = NULL;
+
+void initLIDAR() { 
     ///////// CONFIGURE PWM /////////
     configurePWM();
 
@@ -498,12 +521,14 @@ void init() {
     ////////// CONFIGURE UART ///////////
     configureUART();
     // Listen on UART
-    xTaskCreate(rx_task, "ydlidar_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(rx_task, "ydlidar_rx_task", 1024*8, NULL, configMAX_PRIORITIES, &ydlidarRXTaskHandle);
 }
-
-void changePWM(uint8_t pwm) {
+void stopLIDAR() {
+  vTaskDelete(ydlidarRXTaskHandle);
+}
+void changePWM(float pwm) {
     YdlidarController.pwm_val=pwm;
-    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, (float)(pwm / 255.f));
+    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, pwm);
 }
 
 

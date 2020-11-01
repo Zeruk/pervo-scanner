@@ -13,7 +13,7 @@
 static const char *TAG = "SDCard";
 FILE* file;
 
-void init();
+void initSDCard();
 void newFile(char* name);
 void writeFile(char* buffer);
 void closeFile();
@@ -26,7 +26,7 @@ struct sdcard SDCard = {
     // 1 = initialized
     // 2 = writing file
 
-    .init = init,
+    .init = initSDCard,
     .newFile = newFile,
     .writeFile = writeFile,
     .closeFile = closeFile,
@@ -34,7 +34,7 @@ struct sdcard SDCard = {
 };
 
 
-void init(){
+void initSDCard(){
     // set GPIO direction
     ESP_LOGI(TAG, "Set GPIO direction");
     // gpio_set_direction(SDCARD_PIN_MISO, GPIO_MODE_OUTPUT);
@@ -48,6 +48,7 @@ void init(){
     ESP_LOGI(TAG, "Using SPI peripheral");
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    host.command_timeout_ms = 5000;
     sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
     slot_config.gpio_miso = SDCARD_PIN_MISO;
     slot_config.gpio_mosi = SDCARD_PIN_MOSI;
@@ -82,6 +83,7 @@ void init(){
         }
         return;
     }
+    SDCard.state = 1;
 
     
     // Card has been initialized, print its properties
@@ -105,6 +107,7 @@ void newFile(char* name){
         ESP_LOGE(TAG, "Failed to open file for writing");
         return;
     }
+    SDCard.state = 2;
     ESP_LOGI(TAG, "File opening success");
     
     ////// delete this
@@ -115,16 +118,21 @@ void newFile(char* name){
     // fclose(file);
 };
 void writeFile(char* buffer){
-    ESP_LOGI(TAG, "File write %s", buffer);
-    fprintf(file, "Hello %s!\n", buffer);
+    // ESP_LOGI(TAG, "File write %s", buffer);
+    if(SDCard.state != 2) return;
+    fprintf(file, "%s!\n", buffer);
 };
 void closeFile(){
+    if(SDCard.state != 2) return;
     ESP_LOGI(TAG, "Close file");
     // fclose(SDCard.file);
     fclose(file);
+    SDCard.state = 1;
 };
 void unmountCard() {
+    if(SDCard.state != 1) return;
     ESP_LOGI(TAG, "Try to unmount sdcard");
     esp_vfs_fat_sdmmc_unmount();
     ESP_LOGI(TAG, "Card unmounted");
+    SDCard.state = 0;
 }

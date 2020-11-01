@@ -21,8 +21,9 @@ struct ydlidarController {
     void (*fileWriteFunction)(char* buffer);
 
     void (*init)(void);
+    void (*stop)(void);
     // void init();
-    void (*changePWM)(uint8_t pwm);
+    void (*changePWM)(float pwm);
     // void step(int dir=1);
 };
 

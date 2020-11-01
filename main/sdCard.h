@@ -14,6 +14,8 @@
 #define SDCARD_PIN_MOSI 18
 #define SDCARD_PIN_CS   5
 
+#define SDMMC_MAX_EVT_WAIT_DELAY_MS 5000
+
 struct sdcard {
     int8_t state; // 0=initial
     // 1 = initialized
