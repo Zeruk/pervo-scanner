@@ -3,12 +3,16 @@
 #ifndef SCARD_H_
 #define SCARD_H_
 
-#include <stdint.h>
+#include "sdmmc_cmd.h"
 
-#define SDCARD_PIN_MISO 2
-#define SDCARD_PIN_MOSI 15
-#define SDCARD_PIN_CLK  14
-#define SDCARD_PIN_CS   13
+// #define SDCARD_PIN_MISO 36
+// #define SDCARD_PIN_CLK  39
+// #define SDCARD_PIN_MOSI 34
+// #define SDCARD_PIN_CS   35
+#define SDCARD_PIN_MISO 21
+#define SDCARD_PIN_SCK  19
+#define SDCARD_PIN_MOSI 18
+#define SDCARD_PIN_CS   5
 
 struct sdcard {
     int8_t state; // 0=initial
@@ -24,8 +28,9 @@ struct sdcard {
 
     void (*init)(void);
     void (*newFile)(char* name);
-    void (*write)(char* buffer);
+    void (*writeFile)(char* buffer);
     void (*closeFile)(void);
+    void (*unmountCard)(void);
 };
 
 extern struct sdcard SDCard;

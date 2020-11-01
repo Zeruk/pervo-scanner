@@ -11,13 +11,14 @@
 #define YDLIDAR_PWM 14
 #define YDLIDAR_DATA 13
 #define YDLIDAR_UART_SPEED 115200
-#define YDLIDAR_BUF_SIZE (1024)
+#define FILEBUFFER_LEN (1024)
 
 // dummy for uart init
 #define YDLIDAR_TXD  19
 
 struct ydlidarController {
     uint8_t pwm_val;
+    void (*fileWriteFunction)(char* buffer);
 
     void (*init)(void);
     // void init();

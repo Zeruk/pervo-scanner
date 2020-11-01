@@ -1,6 +1,6 @@
 #include "ydlidar.h"
 #include <stdio.h>
-// #include <stdlib.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "freertos/FreeRTOS.h"
@@ -401,7 +401,8 @@ result_t waitScanDot(uint32_t timeout) {
 static void rx_task(void *arg)
 {
     esp_log_level_set(TAG, ESP_LOG_INFO);
-    uint8_t* data = (uint8_t*) malloc(RX_BUF_SIZE+1);
+    char* fileBuffer = (char*) malloc(FILEBUFFER_LEN);
+    char* strBuffer = (char*) malloc(100);
     uint8_t countStructs = 0;
     float range = 0.0;
     float intensity = 0.0;
@@ -425,55 +426,25 @@ static void rx_task(void *arg)
     /// startScan
     startScan(false, 1000);
     while(1){
+        vTaskDelay(1 / portTICK_PERIOD_MS);
         if (waitScanDot(1000) == RESULT_OK) {
             float distance = point.distance; //distance value in mm unit
             float angle    = point.angle; //anglue value in degree
             uint8_t  quality  = point.quality; //quality of the current measurement
 	        // bool  startBit = point.startBit;
-            ESP_LOGI(TAG, "Read current angle: %f, distance: %f, quality: %d", angle, distance, quality);
+            // ESP_LOGI(TAG, "Read current angle: %f, distance: %f, quality: %d", angle, distance, quality);
+            if(strlen(fileBuffer) > FILEBUFFER_LEN - 40) {
+              printf("================= Write to SDCard: =============================\n%s", fileBuffer);
+              YdlidarController.fileWriteFunction(fileBuffer);
+              fileBuffer[0] = '\0';
+            }
+            sprintf(strBuffer, "%f %f %d\n", angle, distance, quality);
+            strcat(fileBuffer, strBuffer);
       }else{
          ESP_LOGI(TAG, "YDLIDAR get Scandata fialed!!");
       }
     }
     return;
-
-    while (1) { /// ????? should I do this?
-        const int rxBytes = uart_read_bytes(UART_NUM_1, data, RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
-        if (rxBytes > 0) {
-            data[rxBytes] = 0;
-            ESP_LOGI(TAG, "Read %d bytes'", rxBytes);
-            // ESP_LOG_BUFFER_HEXDUMP(TAG, data, rxBytes, ESP_LOG_INFO);
-            // COPY to struct
-            countStructs = (int)(rxBytes / sizeof(struct my_node_info));
-            memcpy(nodebuffer, data, countStructs * sizeof(struct my_node_info));
-            // ESP_LOGI(TAG, "Readed point: %d %d %d %d ll %d %d", 
-            //     nodebuffer[1].sync_flag, 
-            //     nodebuffer[1].sync_quality, 
-            //     nodebuffer[1].angle_q6_checkbit, 
-            //     nodebuffer[1].distance_q2, 
-            //     /*nodebuffer[1].stamp,*/ 
-            //     nodebuffer[1].scan_frequence, 
-            //     nodebuffer[1].index);
-            for (uint16_t i = 0; i < countStructs; i++)
-            {
-                intensity = (float)nodebuffer[i].sync_quality;
-                range = (float)(nodebuffer[i].distance_q2 / 4000.f);
-
-                angle = (float)((nodebuffer[i].angle_q6_checkbit >> 1) / 64.0f);
-                // angle = angles::from_degrees(angle);
-                // angle = angles::normalize_angle(angle);
-
-                // if (angle >= min_angle &&
-                //         angle <= max_angle) {
-                    printf("%f %f %f \n", intensity, angle, range);
-                    // can push into resulting array
-                // }
-            }
-            
-            
-        }
-    }
-    free(data);
 };
 
 void configurePWM() {
