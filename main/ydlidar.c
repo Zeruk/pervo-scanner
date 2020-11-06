@@ -12,12 +12,15 @@
 #include "driver/mcpwm.h"
 #include "soc/mcpwm_periph.h"
 
+#include <stdint.h>
+#include "byteswap.h"
 
 void initLIDAR();
 void stopLIDAR();
 
 void changePWM(float pwm);
 
+// !!!! THIS IS LITTLE ENDIAN
 
 static const char* TAG = "uart_YDLIDAR";
 struct ydlidarController YdlidarController = {
@@ -55,11 +58,9 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
   uint32_t startTs = esp_timer_get_time()/1000;
   uint8_t  *headerBuffer = (uint8_t *)(header);
   uint32_t waitTime;
-  int counter = 0;
 
   uint8_t* currentbyte = (uint8_t*) malloc(1);
   while ((waitTime = esp_timer_get_time()/1000 - startTs) <= timeout) {
-    counter++;
     // int currentbyte = _bined_serialdev->read();
     // uint8_t currentbyte;
     // uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS);
@@ -68,13 +69,13 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
       ESP_LOGE(TAG, "Empty uart");
       continue;
     }
+    // ESP_LOGI(TAG, "currentbyte %02x", *currentbyte);
 
     switch (recvPos) {
         case 0:
         if (*currentbyte != LIDAR_ANS_SYNC_BYTE1) {
             continue;
-        }
-
+        } 
         break;
 
         case 1:
@@ -85,42 +86,42 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
 
         break;
     }
-
     headerBuffer[recvPos++] = *currentbyte;
-    // ESP_LOGI(TAG, "headerBuffer[%d] of %d, %04x", recvPos - 1, sizeof(lidar_ans_header), *currentbyte);
-
     if (recvPos == sizeof(lidar_ans_header)) {
         free(currentbyte);
       return RESULT_OK;
     }
   }
   free(currentbyte);
-  ESP_LOGI(TAG, "counter: %d", counter);
   return RESULT_TIMEOUT;
 };
 
 result_t getDeviceInfo(device_info *info, uint32_t timeout) {
-    result_t  ans;
+    result_t ans;
     uint8_t  recvPos = 0;
     uint32_t currentTs = esp_timer_get_time()/1000;
     uint32_t remainingtime;
     uint8_t *infobuf = (uint8_t *)&info;
-    lidar_ans_header response_header;
+    lidar_ans_header* response_header=malloc(sizeof(lidar_ans_header));
 
     ESP_LOGI(TAG, "waitResponseHeader");
-    if ((ans = waitResponseHeader(&response_header, timeout)) != RESULT_OK) {
+    if ((ans = waitResponseHeader(response_header, timeout)) != RESULT_OK) {
         return ans;
     }
 
-    if (response_header.type != LIDAR_ANS_TYPE_DEVINFO) {
+    ESP_LOGI(TAG, "afterwaitResponseHeader type:%d size:%d sizeof:%d", response_header->type, response_header->size, sizeof(lidar_ans_header));
+// I (832) uart_YDLIDAR: afterwaitResponseHeader 46 67371008 12
+
+    if (response_header->type != LIDAR_ANS_TYPE_DEVINFO) {
+        free(response_header);
         return RESULT_FAIL;
     }
 
-    if (response_header.size < sizeof(lidar_ans_header)) {
+    if (response_header->size < sizeof(lidar_ans_header)) {
+        free(response_header);
         return RESULT_FAIL;
     }
 
-    ESP_LOGI(TAG, "Before while");
     uint8_t* currentbyte = (uint8_t*) malloc(1);
     while ((remainingtime = esp_timer_get_time()/1000 - currentTs) <= timeout) {
         if (uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
@@ -413,31 +414,34 @@ static void rx_task(void *arg)
     float range = 0.0;
     uint8_t intensity = 0.0;
     float angle = 0.0;
+    // device_info* deviceinfo = (device_info*) malloc(1);
+    // result_t getInfoResult;
 
     /// startScan
     while (1) {
       uart_flush(UART_NUM_1);
       /// Get device info
-      device_info* deviceinfo = (device_info*) malloc(1);
-      if(getDeviceInfo(deviceinfo, 1000) != RESULT_OK) {
-        ESP_LOGE(TAG, "Didn't get device info");
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-        continue;
-      }
+      // getInfoResult = getDeviceInfo(deviceinfo, 5000);
+      // if(getInfoResult != RESULT_OK) {
+      //   ESP_LOGE(TAG, "Didn't get device info");
+      //   if(getInfoResult == RESULT_TIMEOUT) ESP_LOGE(TAG, "Because of timeout");
+      //   vTaskDelay(10 / portTICK_PERIOD_MS);
+      //   continue;
+      // }
       
-      uint16_t maxv = (uint16_t)(deviceinfo->firmware_version>>8);
-      uint16_t midv = (uint16_t)(deviceinfo->firmware_version&0xff)/10;
-      uint16_t minv = (uint16_t)(deviceinfo->firmware_version&0xff)%10;
-      if(midv==0){
-          midv = minv;
-          minv = 0;
-      }
+      // uint16_t maxv = (uint16_t)(deviceinfo->firmware_version>>8);
+      // uint16_t midv = (uint16_t)(deviceinfo->firmware_version&0xff)/10;
+      // uint16_t minv = (uint16_t)(deviceinfo->firmware_version&0xff)%10;
+      // if(midv==0){
+      //     midv = minv;
+      //     minv = 0;
+      // }
       
-      ESP_LOGI(TAG, "!!!  device_info: model %d, v%d.%d.%d, hv:%d", deviceinfo->model,maxv, midv, minv, deviceinfo->hardware_version);
-      // Strange version
+      // ESP_LOGI(TAG, "!!!  device_info: model %d, v%d.%d.%d, hv:%d", deviceinfo->model,maxv, midv, minv, deviceinfo->hardware_version);
+      // // Strange version
+      // free(deviceinfo);
 
-
-      if(startScan(false, 1000) != RESULT_OK) {
+      if(startScan(false, 5000) != RESULT_OK) {
         ESP_LOGE(TAG, "Didn't started scan");
         vTaskDelay(10 / portTICK_PERIOD_MS);
         continue;

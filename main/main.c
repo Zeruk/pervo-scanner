@@ -66,31 +66,36 @@ void app_main(void)
     // }
 
 
-    ESP_LOGI(TAG, "Initialize SDCard");
-    SDCard.init();
-    while (SDCard.state < 1)
-    {
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-        SDCard.init();
-    } 
+    // ESP_LOGI(TAG, "Initialize SDCard");
+    // SDCard.init();
+    // while (SDCard.state < 1)
+    // {
+    //     vTaskDelay(500 / portTICK_PERIOD_MS);
+    //     SDCard.init();
+    // } 
     
     YdlidarController.fileWriteFunction = SDCard.writeFile;
-    SDCard.newFile("/sdcard/scan1.xyz");
-    if(SDCard.state != 2) {
-        ESP_LOGE(TAG, "Error creating file");
-        while(1) {}
-    }
+    // SDCard.newFile("/sdcard/scan1.xyz");
+    // if(SDCard.state != 2) {
+    //     ESP_LOGE(TAG, "Error creating file");
+    //     while(1) {}
+    // }
 
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "Initialize YDLIiDAR");
     YdlidarController.init();
     YdlidarController.changePWM(0.f);
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
     YdlidarController.changePWM(100.f);
-    vTaskDelay(3000 / portTICK_PERIOD_MS);
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
     YdlidarController.changePWM(0.f);
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+    YdlidarController.changePWM(100.f);
+    // YdlidarController.changePWM(0.f);
+    // vTaskDelay(2000 / portTICK_PERIOD_MS);
     /// WTF?
 // I (8930) uart_YDLIDAR: headerBuffer[0] of 12, 00a5
 // I (8970) uart_YDLIDAR: headerBuffer[0] of 12, 00a5
