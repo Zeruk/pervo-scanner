@@ -173,7 +173,7 @@ result_t startScan(bool force, uint32_t timeout) {
       return ans;
     }
 
-    print_hex_memory(&response_header, sizeof(lidar_ans_header));
+    // print_hex_memory(&response_header, sizeof(lidar_ans_header));
     if (response_header.type != LIDAR_ANS_TYPE_MEASUREMENT) {
         ESP_LOGI(TAG, "Response_header.type = %02x", response_header.type);
         return RESULT_FAIL;

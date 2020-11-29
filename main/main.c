@@ -72,20 +72,20 @@ void app_main(void)
     // }
 
 
-    // ESP_LOGI(TAG, "Initialize SDCard");
-    // SDCard.init();
-    // while (SDCard.state < 1)
-    // {
-    //     vTaskDelay(500 / portTICK_PERIOD_MS);
-    //     SDCard.init();
-    // } 
+    ESP_LOGI(TAG, "Initialize SDCard");
+    SDCard.init();
+    while (SDCard.state < 1)
+    {
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+        SDCard.init();
+    } 
     
     YdlidarController.fileWriteFunction = SDCard.writeFile;
-    // SDCard.newFile("/sdcard/scan1.xyz");
-    // if(SDCard.state != 2) {
-    //     ESP_LOGE(TAG, "Error creating file");
-    //     while(1) {}
-    // }
+    SDCard.newFile("/sdcard/scan1.xyz");
+    while(SDCard.state != 2) {
+        ESP_LOGE(TAG, "Error creating file");
+        SDCard.newFile("/sdcard/scan1.xyz");
+    }
 
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -105,7 +105,7 @@ void app_main(void)
     // vTaskDelay(2000 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "Start file write");
 
-    vTaskDelay(30000 / portTICK_PERIOD_MS);
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
     YdlidarController.stop();
 
     SDCard.closeFile();
