@@ -9,9 +9,6 @@
 #include "sdmmc_cmd.h"
 
 
-#define SDMMC_MAX_EVT_WAIT_DELAY_MS 2000
-
-
 static const char *TAG = "SDCard";
 FILE* file;
 
@@ -50,6 +47,8 @@ void initSDCard(){
     ESP_LOGI(TAG, "Using SPI peripheral");
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    host.max_freq_khz = 19000 ;
+
     host.command_timeout_ms = 5000;
     sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
     slot_config.gpio_miso = SDCARD_PIN_MISO;
@@ -59,6 +58,10 @@ void initSDCard(){
     // This initializes the slot without card detect (CD) and write protect (WP) signals.
     // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
 
+    gpio_set_pull_mode(SDCARD_PIN_MISO, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(SDCARD_PIN_MOSI, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(SDCARD_PIN_SCK, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(SDCARD_PIN_CS, GPIO_PULLUP_ONLY);
 
     // Options for mounting the filesystem.
     // If format_if_mount_failed is set to true, SD card will be partitioned and
@@ -103,7 +106,7 @@ void newFile(char* name){
     //     ESP_LOGE(TAG, "Failed to open file for writing");
     //     // return -1;
     // }
-    file = fopen("sdcard/test.txt", "w");
+    file = fopen(name, "w");
     // SDCard.file = &f;
     if (file == NULL) {
         ESP_LOGE(TAG, "Failed to open file for writing");
@@ -112,13 +115,6 @@ void newFile(char* name){
     SDCard.state = 2;
     ESP_LOGI(TAG, "File opening success");
     
-    ////// delete this
-    fprintf(file, "Hello %s!\n", "asdasdasd");
-    // ESP_LOGI(TAG, "File written");
-    // ESP_LOGI(TAG, "Close file");
-    // // fclose(SDCard.file);
-    fclose(file);
-    file = fopen(name, "w");
 };
 void writeFile(char* buffer){
     // ESP_LOGI(TAG, "File write %s", buffer);
