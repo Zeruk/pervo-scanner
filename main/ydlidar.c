@@ -441,6 +441,7 @@ static void rx_task(void *arg)
     float range = 0.0;
     uint8_t intensity = 0.0;
     float angle = 0.0;
+    fileBuffer[0] = '\0';
 
     device_info* deviceinfo = (device_info*) malloc(1);
     result_t getInfoResult;
@@ -491,7 +492,7 @@ static void rx_task(void *arg)
               }
               sprintf(strBuffer, "%f %f %d\n", angle, range, intensity);
               strcat(fileBuffer, strBuffer);
-              vTaskDelay(10 / portTICK_PERIOD_MS); // for background processes
+              vTaskDelay(5 / portTICK_PERIOD_MS); // for background processes
         }else{
           ESP_LOGI(TAG, "YDLIDAR get Scandata failed!!");
         }
