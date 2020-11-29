@@ -439,7 +439,7 @@ static void rx_task(void *arg)
       if(getInfoResult != RESULT_OK) {
         ESP_LOGE(TAG, "Didn't get device info");
         if(getInfoResult == RESULT_TIMEOUT) ESP_LOGE(TAG, "Because of timeout");
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        // vTaskDelay(10 / portTICK_PERIOD_MS);
         continue;
       }
       
@@ -457,12 +457,12 @@ static void rx_task(void *arg)
 
       if(startScan(false, 5000) != RESULT_OK) {
         ESP_LOGE(TAG, "Didn't started scan");
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        // vTaskDelay(10 / portTICK_PERIOD_MS);
         continue;
       }
 
       while(1) {
-          vTaskDelay(1 / portTICK_PERIOD_MS);
+          // vTaskDelay(1 / portTICK_PERIOD_MS);
           if (waitScanDot(1000) == RESULT_OK) {
               range     = point.distance; //distance value in mm unit
               angle     = point.angle; //anglue value in degree
@@ -477,7 +477,7 @@ static void rx_task(void *arg)
               }
               sprintf(strBuffer, "%f %f %d\n", angle, range, intensity);
               strcat(fileBuffer, strBuffer);
-              vTaskDelay(10 / portTICK_PERIOD_MS); // for background processes
+              // vTaskDelay(10 / portTICK_PERIOD_MS); // for background processes
         }else{
           ESP_LOGI(TAG, "YDLIDAR get Scandata fialed!!");
         }

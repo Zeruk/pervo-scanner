@@ -11,6 +11,7 @@
 #define YDLIDAR_PWM 14
 #define YDLIDAR_DATA 13
 #define YDLIDAR_UART_SPEED 115200
+// #define YDLIDAR_UART_SPEED 128000
 #define FILEBUFFER_LEN (1024)
 
 // dummy for uart init
