@@ -68,7 +68,7 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
     // uint8_t currentbyte;
     // uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS);
     
-
+  
     if (uart_read_bytes(UART_NUM_1, currentbyte, BUFFER_WRH_READ, 1000 / portTICK_RATE_MS) < 0) {
       ESP_LOGE(TAG, "Empty uart");
       continue;
@@ -81,18 +81,18 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
           case 0:
           if (currentbyte[currentPosition] != LIDAR_ANS_SYNC_BYTE1) {
               currentPosition++;
-              ESP_LOGI(TAG, "1currentbyte %02x", *currentbyte);
               continue;
           } 
+          ESP_LOGI(TAG, "1currentbyte %02x", currentbyte[currentPosition]);
           break;
 
           case 1:
           if (currentbyte[currentPosition] != LIDAR_ANS_SYNC_BYTE2) {
               recvPos = 0;
               currentPosition++;
-              ESP_LOGI(TAG, "2currentbyte %02x", *currentbyte);
               continue;
           }
+          ESP_LOGI(TAG, "2currentbyte %02x", currentbyte[currentPosition]);
 
           break;
       }
