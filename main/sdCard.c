@@ -9,6 +9,8 @@
 #include "sdmmc_cmd.h"
 
 
+#define SDMMC_MAX_EVT_WAIT_DELAY_MS 2000
+
 
 static const char *TAG = "SDCard";
 FILE* file;
@@ -101,7 +103,7 @@ void newFile(char* name){
     //     ESP_LOGE(TAG, "Failed to open file for writing");
     //     // return -1;
     // }
-    file = fopen("/sdcard/hello.txt", "w");
+    file = fopen("sdcard/test.txt", "w");
     // SDCard.file = &f;
     if (file == NULL) {
         ESP_LOGE(TAG, "Failed to open file for writing");
@@ -111,11 +113,12 @@ void newFile(char* name){
     ESP_LOGI(TAG, "File opening success");
     
     ////// delete this
-    // fprintf(file, "Hello %s!\n", "asdasdasd");
+    fprintf(file, "Hello %s!\n", "asdasdasd");
     // ESP_LOGI(TAG, "File written");
     // ESP_LOGI(TAG, "Close file");
     // // fclose(SDCard.file);
-    // fclose(file);
+    fclose(file);
+    file = fopen(name, "w");
 };
 void writeFile(char* buffer){
     // ESP_LOGI(TAG, "File write %s", buffer);
@@ -126,6 +129,7 @@ void closeFile(){
     if(SDCard.state != 2) return;
     ESP_LOGI(TAG, "Close file");
     // fclose(SDCard.file);
+    fflush(file);
     fclose(file);
     SDCard.state = 1;
 };
