@@ -54,6 +54,16 @@ scanPoint point;
 
 struct my_node_info nodebuffer[100];
 
+void print_hex_memory(void *mem, uint8_t count) {
+  uint8_t i;
+  uint8_t *p = (uint8_t *)mem;
+
+  for (i=0;i<count;i++) {
+    printf("0x%02x ", p[i]);
+  }
+  printf("\n");
+}
+
 // wait response header
 result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
   int  recvPos = 0;
@@ -61,7 +71,7 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
   uint8_t  *headerBuffer = (uint8_t *)(header);
   uint32_t waitTime;
 
-  #define BUFFER_WRH_READ 10
+  #define BUFFER_WRH_READ 1
   uint8_t* currentbyte = (uint8_t*) malloc(BUFFER_WRH_READ);
   uint8_t currentPosition;
 
@@ -76,15 +86,18 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
       continue;
     }
     // ESP_LOGI(TAG, "currentbyte %02x", *currentbyte);
+    // print_hex_memory(currentbyte, BUFFER_WRH_READ);
 
     currentPosition = 0;
     while(currentPosition < BUFFER_WRH_READ) {
       switch (recvPos) {
           case 0:
           if (currentbyte[currentPosition] != LIDAR_ANS_SYNC_BYTE1) {
+              ESP_LOGI(TAG, "currentbyte FALSE %02x B1=%02x B2=%02x", currentbyte[currentPosition], LIDAR_ANS_SYNC_BYTE1, LIDAR_ANS_SYNC_BYTE2);
               currentPosition++;
               continue;
           }
+          ESP_LOGI(TAG, "currentbyte TRUE %02x B1=%02x B2=%02x", currentbyte[currentPosition], LIDAR_ANS_SYNC_BYTE1, LIDAR_ANS_SYNC_BYTE2);
           break;
 
           case 1:
@@ -93,18 +106,19 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
               currentPosition++;
               continue;
           }
-          ESP_LOGI(TAG, "2currentbyte %02x", currentbyte[currentPosition]);
 
           break;
       }
       headerBuffer[recvPos++] = currentbyte[currentPosition];
       if (recvPos == sizeof(lidar_ans_header)) {
           free(currentbyte);
+        ESP_LOGI(TAG, "waitResponseHeader OK!");
         return RESULT_OK;
       }
     }
   }
   free(currentbyte);
+  ESP_LOGI(TAG, "waitResponseHeader TIMEOUT!");
   return RESULT_TIMEOUT;
 };
 
