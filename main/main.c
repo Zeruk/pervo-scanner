@@ -85,15 +85,15 @@ void app_main(void)
     vTaskDelay(100 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "Initialize YDLIiDAR");
     YdlidarController.init();
-    YdlidarController.changePWM(0.f);
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-    YdlidarController.changePWM(100.f);
+    // YdlidarController.changePWM(0.f);
+    // vTaskDelay(10 / portTICK_PERIOD_MS);
+    // YdlidarController.changePWM(100.f);
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    YdlidarController.changePWM(0.f);
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-    YdlidarController.changePWM(100.f);
+    // YdlidarController.changePWM(0.f);
+    // vTaskDelay(10 / portTICK_PERIOD_MS);
+    // YdlidarController.changePWM(100.f);
     // YdlidarController.changePWM(0.f);
     // vTaskDelay(2000 / portTICK_PERIOD_MS);
     /// WTF?

@@ -59,37 +59,48 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
   uint8_t  *headerBuffer = (uint8_t *)(header);
   uint32_t waitTime;
 
-  uint8_t* currentbyte = (uint8_t*) malloc(1);
+  #define BUFFER_WRH_READ 10
+  uint8_t* currentbyte = (uint8_t*) malloc(BUFFER_WRH_READ);
+  uint8_t currentPosition;
+
   while ((waitTime = esp_timer_get_time()/1000 - startTs) <= timeout) {
     // int currentbyte = _bined_serialdev->read();
     // uint8_t currentbyte;
     // uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS);
+    
 
-    if (uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
+    if (uart_read_bytes(UART_NUM_1, currentbyte, BUFFER_WRH_READ, 1000 / portTICK_RATE_MS) < 0) {
       ESP_LOGE(TAG, "Empty uart");
       continue;
     }
     // ESP_LOGI(TAG, "currentbyte %02x", *currentbyte);
 
-    switch (recvPos) {
-        case 0:
-        if (*currentbyte != LIDAR_ANS_SYNC_BYTE1) {
-            continue;
-        } 
-        break;
+    currentPosition = 0;
+    while(currentPosition < BUFFER_WRH_READ) {
+      switch (recvPos) {
+          case 0:
+          if (currentbyte[currentPosition] != LIDAR_ANS_SYNC_BYTE1) {
+              currentPosition++;
+              ESP_LOGI(TAG, "1currentbyte %02x", *currentbyte);
+              continue;
+          } 
+          break;
 
-        case 1:
-        if (*currentbyte != LIDAR_ANS_SYNC_BYTE2) {
-            recvPos = 0;
-            continue;
-        }
+          case 1:
+          if (currentbyte[currentPosition] != LIDAR_ANS_SYNC_BYTE2) {
+              recvPos = 0;
+              currentPosition++;
+              ESP_LOGI(TAG, "2currentbyte %02x", *currentbyte);
+              continue;
+          }
 
-        break;
-    }
-    headerBuffer[recvPos++] = *currentbyte;
-    if (recvPos == sizeof(lidar_ans_header)) {
-        free(currentbyte);
-      return RESULT_OK;
+          break;
+      }
+      headerBuffer[recvPos++] = currentbyte[currentPosition];
+      if (recvPos == sizeof(lidar_ans_header)) {
+          free(currentbyte);
+        return RESULT_OK;
+      }
     }
   }
   free(currentbyte);
@@ -184,6 +195,7 @@ result_t waitScanDot(uint32_t timeout) {
   uint8_t *packageBuffer = (uint8_t *)&package.package_Head;
   uint8_t  package_Sample_Num = 0;
   int32_t AngleCorrectForDistance;
+  uint8_t* currentByte = (uint8_t*) malloc(1);
 
   int  package_recvPos = 0;
 
@@ -191,9 +203,8 @@ result_t waitScanDot(uint32_t timeout) {
     recvPos = 0;
 
     while ((waitTime = (esp_timer_get_time()/1000 - startTs)) <= timeout) {
-      uint8_t* currentByte = (uint8_t*) malloc(1);
       if (uart_read_bytes(UART_NUM_1, currentByte, 1, 1000 / portTICK_RATE_MS) < 0) {
-        vTaskDelay(5 / portTICK_PERIOD_MS);
+        // vTaskDelay(5 / portTICK_PERIOD_MS);
         continue;
       }
 
@@ -212,6 +223,7 @@ result_t waitScanDot(uint32_t timeout) {
           recvPos = 0;
           continue;
         }
+        // ESP_LOGE(TAG, "", *currentByte)
 
         break;
 
@@ -304,7 +316,7 @@ result_t waitScanDot(uint32_t timeout) {
       int package_sample_sum = package_Sample_Num << 1;
 
       while (1) { //(waitTime = millis() - startTs) <= timeout) {
-        uint8_t* currentByte = (uint8_t*) malloc(1);
+        // uint8_t* currentByte = (uint8_t*) malloc(1);
         if (uart_read_bytes(UART_NUM_1, currentByte, 1, 1000 / portTICK_RATE_MS) < 0) {
           continue;
         }
@@ -475,7 +487,7 @@ void configurePWM() {
     //// from mcpwm_servo_control
 
     //1. mcpwm gpio initialization
-    mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, YDLIDAR_PWM);
+    // mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, YDLIDAR_PWM);
 
     //2. initial mcpwm configuration
     printf("Configuring Initial Parameters of mcpwm......\n");
@@ -514,8 +526,13 @@ void configureUART() {
 TaskHandle_t ydlidarRXTaskHandle = NULL;
 
 void initLIDAR() { 
-    ///////// CONFIGURE PWM /////////
-    configurePWM();
+    // configure GPIO
+    gpio_pad_select_gpio(YDLIDAR_PWM);
+    gpio_set_direction(YDLIDAR_PWM, GPIO_MODE_OUTPUT);
+
+    // switch off lidar
+    // ESP_LOGI(TAG, "Switch off YDLIiDAR");
+    // gpio_set_level(YDLIDAR_PWM, 0);
 
     ///////// CONFIGURE YDLIDAR /////////
     point.distance = 0;
@@ -526,6 +543,13 @@ void initLIDAR() {
     configureUART();
     // Listen on UART
     xTaskCreate(rx_task, "ydlidar_rx_task", 1024*8, NULL, configMAX_PRIORITIES, &ydlidarRXTaskHandle);
+
+    
+    // switch on lidar
+    ESP_LOGI(TAG, "Switch on YDLIiDAR");
+    gpio_set_level(YDLIDAR_PWM, 1);
+    // wait for 10ms
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
 }
 void stopLIDAR() {
   vTaskDelete(ydlidarRXTaskHandle);
@@ -533,6 +557,10 @@ void stopLIDAR() {
 void changePWM(float pwm) {
     YdlidarController.pwm_val=pwm;
     mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, pwm);
+}
+
+void updateLidarSupply(bool enable) {
+
 }
 
 
