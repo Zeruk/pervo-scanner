@@ -457,17 +457,17 @@ static void rx_task(void *arg)
         continue;
       }
       
-      // uint16_t maxv = (uint16_t)(deviceinfo->firmware_version>>8);
-      // uint16_t midv = (uint16_t)(deviceinfo->firmware_version&0xff)/10;
-      // uint16_t minv = (uint16_t)(deviceinfo->firmware_version&0xff)%10;
-      // if(midv==0){
-      //     midv = minv;
-      //     minv = 0;
-      // }
+      uint16_t maxv = (uint16_t)(deviceinfo->firmware_version>>8);
+      uint16_t midv = (uint16_t)(deviceinfo->firmware_version&0xff)/10;
+      uint16_t minv = (uint16_t)(deviceinfo->firmware_version&0xff)%10;
+      if(midv==0){
+          midv = minv;
+          minv = 0;
+      }
       
-      // ESP_LOGI(TAG, "!!!  device_info: model %d, v%d.%d.%d, hv:%d", deviceinfo->model,maxv, midv, minv, deviceinfo->hardware_version);
+      ESP_LOGI(TAG, "!!!  device_info: model %d, v%d.%d.%d, hv:%d", deviceinfo->model,maxv, midv, minv, deviceinfo->hardware_version);
       // // Strange version
-      // free(deviceinfo);
+      free(deviceinfo);
 
       if(startScan(false, 5000) != RESULT_OK) {
         ESP_LOGE(TAG, "Didn't started scan");
@@ -491,7 +491,7 @@ static void rx_task(void *arg)
               }
               sprintf(strBuffer, "%f %f %d\n", angle, range, intensity);
               strcat(fileBuffer, strBuffer);
-              // vTaskDelay(10 / portTICK_PERIOD_MS); // for background processes
+              vTaskDelay(10 / portTICK_PERIOD_MS); // for background processes
         }else{
           ESP_LOGI(TAG, "YDLIDAR get Scandata failed!!");
         }

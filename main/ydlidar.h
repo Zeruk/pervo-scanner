@@ -85,13 +85,13 @@ typedef enum {
   CT_Tail,
 } CT;
 
-typedef struct {
+typedef struct __attribute__((packed)){
   uint8_t    sync_quality;
   uint16_t   angle_q6_checkbit;
   uint16_t   distance_q2;
 } node_info;
 
-typedef struct {
+typedef struct __attribute__((packed)){
   uint16_t  package_Head;
   uint8_t   package_CT;
   uint8_t   nowPackageNum;
@@ -102,7 +102,7 @@ typedef struct {
 } node_package;
 
 
-typedef struct {
+typedef struct __attribute__((packed)){
   uint8_t   model;
   uint16_t  firmware_version;
   uint8_t   hardware_version;
@@ -114,19 +114,19 @@ typedef struct  {
   uint16_t  error_code;
 } device_health;
 
-typedef struct {
+typedef struct __attribute__((packed)){
   uint8_t rate;
 } sampling_rate;
 
-typedef struct {
+typedef struct __attribute__((packed)){
   uint32_t frequency;
 } scan_frequency;
 
-typedef struct {
+typedef struct __attribute__((packed)){
   uint8_t rotation;
 } scan_rotation;
 
-typedef struct {
+typedef struct __attribute__((packed)){
   uint8_t syncByte;
   uint8_t cmd_flag;
   uint8_t size;
