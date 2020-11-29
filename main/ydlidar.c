@@ -16,6 +16,7 @@
 #include "byteswap.h"
 
 void initLIDAR();
+void startLIDAR();
 void stopLIDAR();
 
 void changePWM(float pwm);
@@ -27,6 +28,7 @@ struct ydlidarController YdlidarController = {
     .pwm_val = 0,
     .init = initLIDAR,
     .stop = stopLIDAR,
+    .start = startLIDAR,
     .changePWM = changePWM,
 };
 static const int RX_BUF_SIZE = 1024;
@@ -82,8 +84,7 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
           if (currentbyte[currentPosition] != LIDAR_ANS_SYNC_BYTE1) {
               currentPosition++;
               continue;
-          } 
-          ESP_LOGI(TAG, "1currentbyte %02x", currentbyte[currentPosition]);
+          }
           break;
 
           case 1:
@@ -426,20 +427,21 @@ static void rx_task(void *arg)
     float range = 0.0;
     uint8_t intensity = 0.0;
     float angle = 0.0;
-    // device_info* deviceinfo = (device_info*) malloc(1);
-    // result_t getInfoResult;
+
+    device_info* deviceinfo = (device_info*) malloc(1);
+    result_t getInfoResult;
 
     /// startScan
     while (1) {
-      uart_flush(UART_NUM_1);
+      // uart_flush(UART_NUM_1);
       /// Get device info
-      // getInfoResult = getDeviceInfo(deviceinfo, 5000);
-      // if(getInfoResult != RESULT_OK) {
-      //   ESP_LOGE(TAG, "Didn't get device info");
-      //   if(getInfoResult == RESULT_TIMEOUT) ESP_LOGE(TAG, "Because of timeout");
-      //   vTaskDelay(10 / portTICK_PERIOD_MS);
-      //   continue;
-      // }
+      getInfoResult = getDeviceInfo(deviceinfo, 5000);
+      if(getInfoResult != RESULT_OK) {
+        ESP_LOGE(TAG, "Didn't get device info");
+        if(getInfoResult == RESULT_TIMEOUT) ESP_LOGE(TAG, "Because of timeout");
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+        continue;
+      }
       
       // uint16_t maxv = (uint16_t)(deviceinfo->firmware_version>>8);
       // uint16_t midv = (uint16_t)(deviceinfo->firmware_version&0xff)/10;
@@ -531,8 +533,9 @@ void initLIDAR() {
     gpio_set_direction(YDLIDAR_PWM, GPIO_MODE_OUTPUT);
 
     // switch off lidar
-    // ESP_LOGI(TAG, "Switch off YDLIiDAR");
-    // gpio_set_level(YDLIDAR_PWM, 0);
+    ESP_LOGI(TAG, "Switch off YDLIiDAR");
+    gpio_set_level(YDLIDAR_PWM, 0);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     ///////// CONFIGURE YDLIDAR /////////
     point.distance = 0;
@@ -542,18 +545,20 @@ void initLIDAR() {
     ////////// CONFIGURE UART ///////////
     configureUART();
     // Listen on UART
-    xTaskCreate(rx_task, "ydlidar_rx_task", 1024*8, NULL, configMAX_PRIORITIES, &ydlidarRXTaskHandle);
-
-    
-    // switch on lidar
-    ESP_LOGI(TAG, "Switch on YDLIiDAR");
-    gpio_set_level(YDLIDAR_PWM, 1);
-    // wait for 10ms
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    // xTaskCreate(rx_task, "ydlidar_rx_task", 1024*8, NULL, configMAX_PRIORITIES, &ydlidarRXTaskHandle);
 }
 void stopLIDAR() {
   vTaskDelete(ydlidarRXTaskHandle);
+  ESP_LOGI(TAG, "Switch off YDLIiDAR");
+  gpio_set_level(YDLIDAR_PWM, 0);
 }
+void startLIDAR() {
+  xTaskCreate(rx_task, "ydlidar_rx_task", 1024*8, NULL, configMAX_PRIORITIES - 2, &ydlidarRXTaskHandle);
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  ESP_LOGI(TAG, "Switch on YDLIiDAR");
+  gpio_set_level(YDLIDAR_PWM, 1);
+}
+
 void changePWM(float pwm) {
     YdlidarController.pwm_val=pwm;
     mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, pwm);
