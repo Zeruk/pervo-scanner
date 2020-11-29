@@ -133,7 +133,7 @@ typedef struct {
   uint8_t data;
 } cmd_packet ;
 
-typedef struct {
+typedef struct __attribute__((packed)){
   uint8_t  syncByte1;
   uint8_t  syncByte2;
   uint32_t size: 30;

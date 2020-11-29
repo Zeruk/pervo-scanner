@@ -106,9 +106,10 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
 
           break;
       }
+      ESP_LOGI(TAG, "header[%d] = 0x%02x SO=%d",recvPos, currentbyte[currentPosition], sizeof(lidar_ans_header));
       headerBuffer[recvPos++] = currentbyte[currentPosition++];
       if (recvPos == sizeof(lidar_ans_header)) {
-          free(currentbyte);
+        free(currentbyte);
         ESP_LOGI(TAG, "waitResponseHeader OK!");
         return RESULT_OK;
       }
@@ -172,12 +173,14 @@ result_t startScan(bool force, uint32_t timeout) {
       return ans;
     }
 
+    print_hex_memory(&response_header, sizeof(lidar_ans_header));
     if (response_header.type != LIDAR_ANS_TYPE_MEASUREMENT) {
-        ESP_LOGI(TAG, "Response_header.type = %d", response_header.type);
+        ESP_LOGI(TAG, "Response_header.type = %02x", response_header.type);
         return RESULT_FAIL;
     }
 
     if (response_header.size < sizeof(node_info)) {
+      ESP_LOGI(TAG, "Response_header.size = %d but should be %d FAIL", response_header.size, sizeof(node_info));
       return RESULT_FAIL;
     }
   return RESULT_OK;
@@ -490,7 +493,7 @@ static void rx_task(void *arg)
               strcat(fileBuffer, strBuffer);
               // vTaskDelay(10 / portTICK_PERIOD_MS); // for background processes
         }else{
-          ESP_LOGI(TAG, "YDLIDAR get Scandata fialed!!");
+          ESP_LOGI(TAG, "YDLIDAR get Scandata failed!!");
         }
       }
     }
