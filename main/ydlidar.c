@@ -68,10 +68,10 @@ result_t waitResponseHeader(lidar_ans_header *header, uint32_t timeout) {
   while ((waitTime = esp_timer_get_time()/1000 - startTs) <= timeout) {
     // int currentbyte = _bined_serialdev->read();
     // uint8_t currentbyte;
-    // uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS);
+    // uart_read_bytes(UART_NUM_2, currentbyte, 1, 1000 / portTICK_RATE_MS);
     
   
-    if (uart_read_bytes(UART_NUM_1, currentbyte, BUFFER_WRH_READ, 1000 / portTICK_RATE_MS) < 0) {
+    if (uart_read_bytes(UART_NUM_2, currentbyte, BUFFER_WRH_READ, 1000 / portTICK_RATE_MS) < 0) {
       ESP_LOGE(TAG, "Empty uart");
       continue;
     }
@@ -136,7 +136,7 @@ result_t getDeviceInfo(device_info *info, uint32_t timeout) {
 
     uint8_t* currentbyte = (uint8_t*) malloc(1);
     while ((remainingtime = esp_timer_get_time()/1000 - currentTs) <= timeout) {
-        if (uart_read_bytes(UART_NUM_1, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
+        if (uart_read_bytes(UART_NUM_2, currentbyte, 1, 1000 / portTICK_RATE_MS) < 0) {
             continue;
         }
 
@@ -204,7 +204,7 @@ result_t waitScanDot(uint32_t timeout) {
     recvPos = 0;
 
     while ((waitTime = (esp_timer_get_time()/1000 - startTs)) <= timeout) {
-      if (uart_read_bytes(UART_NUM_1, currentByte, 1, 1000 / portTICK_RATE_MS) < 0) {
+      if (uart_read_bytes(UART_NUM_2, currentByte, 1, 1000 / portTICK_RATE_MS) < 0) {
         // vTaskDelay(5 / portTICK_PERIOD_MS);
         continue;
       }
@@ -318,7 +318,7 @@ result_t waitScanDot(uint32_t timeout) {
 
       while (1) { //(waitTime = millis() - startTs) <= timeout) {
         // uint8_t* currentByte = (uint8_t*) malloc(1);
-        if (uart_read_bytes(UART_NUM_1, currentByte, 1, 1000 / portTICK_RATE_MS) < 0) {
+        if (uart_read_bytes(UART_NUM_2, currentByte, 1, 1000 / portTICK_RATE_MS) < 0) {
           continue;
         }
 
@@ -433,7 +433,7 @@ static void rx_task(void *arg)
 
     /// startScan
     while (1) {
-      // uart_flush(UART_NUM_1);
+      // uart_flush(UART_NUM_2);
       /// Get device info
       getInfoResult = getDeviceInfo(deviceinfo, 5000);
       if(getInfoResult != RESULT_OK) {
@@ -518,10 +518,10 @@ void configureUART() {
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_APB,
     };
+    ESP_ERROR_CHECK(uart_param_config(UART_NUM_2, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_2, YDLIDAR_TXD, YDLIDAR_DATA, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
     // We won't use a buffer for sending data.
-    uart_driver_install(UART_NUM_1, RX_BUF_SIZE * 2, 0, 0, NULL, 0);
-    uart_param_config(UART_NUM_1, &uart_config);
-    uart_set_pin(UART_NUM_1, YDLIDAR_TXD, YDLIDAR_DATA, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, RX_BUF_SIZE * 2, 0, 0, NULL, 0));
 };
 
 
