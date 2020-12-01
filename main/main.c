@@ -13,6 +13,7 @@
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "esp_log.h"
+#include "esp_event.h"
 
 // #include "uln2003.h"
 #include "ydlidar.h"
@@ -52,6 +53,8 @@ void app_main(void)
     printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
+
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     // check if stepper motor working
     // StepperControl.init();
