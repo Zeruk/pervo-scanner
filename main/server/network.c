@@ -94,7 +94,7 @@ void net_initialise_all(void) {
 
 
     ESP_LOGI(TAG, "Init DNS");
-    captdnsInit();
+    init_dns_server();
 
     // ESP_LOGI(TAG, "Init NetBios");
     // netbiosns_init();
