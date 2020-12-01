@@ -70,10 +70,6 @@ esp_err_t start_rest_server(const char *base_path);
 //     mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0); // just server
 // }
 
-static void net_initialise_dns(void) {
-
-}
-
 void net_initialise_all(void) {    
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -89,14 +85,9 @@ void net_initialise_all(void) {
     ESP_LOGI(TAG, "Init WiFi AP");
     wifi_init_softap();
 
-    // ESP_LOGI(TAG, "Init MDNS");
-    // net_initialise_mdns();
-
-
     ESP_LOGI(TAG, "Init DNS");
     init_dns_server();
 
-    // ESP_LOGI(TAG, "Init NetBios");
-    // netbiosns_init();
-    // netbiosns_set_name(NETWORK_MDNS_HOST_NAME);
+    ESP_LOGI(TAG, "Init REST server");
+    start_rest_server("/sdcard");
 }

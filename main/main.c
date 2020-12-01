@@ -107,7 +107,7 @@ void app_main(void)
     // YdlidarController.stop();
 
     SDCard.closeFile();
-    SDCard.unmountCard();
+    // SDCard.unmountCard();
     while(1){
         vTaskDelay(10000 / portTICK_PERIOD_MS);
     };

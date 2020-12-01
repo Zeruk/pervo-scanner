@@ -3,6 +3,7 @@ idf_component_register(SRCS "uln2003.c"
                             "sdCard.c"
                             "server/network.c"
                             "server/dns_server.c"
+                            "server/rest_server.c"
                             "main.c"
                     INCLUDE_DIRS "")
 

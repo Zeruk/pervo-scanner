@@ -79,7 +79,8 @@ void receive_thread(void *pvParameters) {
     int idx;
     int err;
 
-    ESP_LOGI(TAG, "DNS Server listening on 53/udp");
+    inet_ntop(AF_INET, &(ra.sin_addr), ipAddress, INET_ADDRSTRLEN);
+    ESP_LOGI(TAG, "DNS Server listening on %s 53/udp", ipAddress);
     while (1) {
         length = recvfrom(socket_fd, data, sizeof(data), 0, (struct sockaddr *)&client, &client_len);
         if (length > 0) {
@@ -133,10 +134,10 @@ void receive_thread(void *pvParameters) {
             response[idx+11] = 0x04; //4 byte IP address
 
             //The IP address
-            response[idx + 12] = 192;
-            response[idx + 13] = 168;
-            response[idx + 14] = 1;
-            response[idx + 15] = 1;
+            response[idx + 12] = (ip.ip.addr >> (8*0)) & 0xff;
+            response[idx + 13] = (ip.ip.addr >> (8*1)) & 0xff;
+            response[idx + 14] = (ip.ip.addr >> (8*2)) & 0xff;
+            response[idx + 15] = (ip.ip.addr >> (8*3)) & 0xff;
 
             err = sendto(socket_fd, response, idx+16, 0, (struct sockaddr *)&client, client_len);
             if (err < 0) {
