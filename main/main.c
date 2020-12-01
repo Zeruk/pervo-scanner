@@ -18,6 +18,7 @@
 // #include "uln2003.h"
 #include "ydlidar.h"
 #include "sdCard.h"
+#include "./server/network.h"
 
 #ifdef CONFIG_IDF_TARGET_ESP32
 #define CHIP_NAME "ESP32"
@@ -55,6 +56,8 @@ void app_main(void)
 
 
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    net_initialise_all();
 
     // check if stepper motor working
     // StepperControl.init();
