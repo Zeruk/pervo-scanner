@@ -67,7 +67,7 @@ void receive_thread(void *pvParameters) {
         close(socket_fd);
         exit(1);
     }
-    ESP_LOGI(TAG, "Binded on 53/udp", );
+    ESP_LOGI(TAG, "Binded on 53/udp");
 
     struct sockaddr_in client;
     socklen_t client_len;
