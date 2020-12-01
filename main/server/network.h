@@ -17,7 +17,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-// #include "dns_server.h"
+#include "dns_server.h"
 
 
 
