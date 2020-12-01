@@ -76,8 +76,8 @@ void app_main(void)
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "Initialize YDLIiDAR");
-    YdlidarController.init();
-    YdlidarController.start();
+    // YdlidarController.init();
+    // YdlidarController.start();
 
     
      ESP_LOGI(TAG, "Initialize SDCard");
@@ -95,22 +95,10 @@ void app_main(void)
         vTaskDelay(500 / portTICK_PERIOD_MS);
         SDCard.newFile("/sdcard/scan1.xyz");
     }
-
-    // YdlidarController.changePWM(0.f);
-    // vTaskDelay(10 / portTICK_PERIOD_MS);
-    // YdlidarController.changePWM(100.f);
-
-    // vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-    // YdlidarController.changePWM(0.f);
-    // vTaskDelay(10 / portTICK_PERIOD_MS);
-    // YdlidarController.changePWM(100.f);
-    // YdlidarController.changePWM(0.f);
-    // vTaskDelay(2000 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "Start file write");
 
     vTaskDelay(5000 / portTICK_PERIOD_MS);
-    YdlidarController.stop();
+    // YdlidarController.stop();
 
     SDCard.closeFile();
     SDCard.unmountCard();
