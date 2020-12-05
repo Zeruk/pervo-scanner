@@ -13,6 +13,8 @@
 #include "esp_log.h"
 #include "esp_vfs.h"
 #include "cJSON.h"
+#include <dirent.h> 
+#include <stdio.h> 
 
 static const char *REST_TAG = "esp-rest";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
@@ -67,8 +69,10 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     } else {
         strlcat(filepath, req->uri, sizeof(filepath));
     }
-    int fd = open(filepath, O_RDONLY, 0);
-    if (fd == -1) {
+    ESP_LOGI(REST_TAG, "Filepath is %s", filepath);
+    FILE *fp;
+    fp = fopen(filepath, "r");
+    if (fp == NULL) {
         ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
         /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
@@ -78,16 +82,17 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     set_content_type_from_file(req, filepath);
 
     char *chunk = rest_context->scratch;
-    ssize_t read_bytes;
+    int16_t read_bytes;
     do {
         /* Read file in chunks into the scratch buffer */
-        read_bytes = read(fd, chunk, SCRATCH_BUFSIZE);
+        read_bytes = fread(chunk, sizeof(char), SCRATCH_BUFSIZE, fp);
+        ESP_LOGI(REST_TAG, "Readed %d, buffer: %d", read_bytes, SCRATCH_BUFSIZE);
         if (read_bytes == -1) {
             ESP_LOGE(REST_TAG, "Failed to read file : %s", filepath);
         } else if (read_bytes > 0) {
             /* Send the buffer contents as HTTP response chunk */
             if (httpd_resp_send_chunk(req, chunk, read_bytes) != ESP_OK) {
-                close(fd);
+                fclose(fp);
                 ESP_LOGE(REST_TAG, "File sending failed!");
                 /* Abort sending file */
                 httpd_resp_sendstr_chunk(req, NULL);
@@ -96,9 +101,9 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
                 return ESP_FAIL;
             }
         }
-    } while (read_bytes > 0);
+    } while (!feof(fp));
     /* Close file after sending complete */
-    close(fd);
+    fclose(fp);
     ESP_LOGI(REST_TAG, "File sending complete");
     /* Respond with an empty chunk to signal HTTP response completion */
     httpd_resp_send_chunk(req, NULL, 0);
@@ -106,7 +111,7 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
 }
 
 /* Simple handler for light brightness control */
-static esp_err_t light_brightness_post_handler(httpd_req_t *req)
+static esp_err_t file_control_rename_handler(httpd_req_t *req)
 {
     int total_len = req->content_len;
     int cur_len = 0;
@@ -129,12 +134,40 @@ static esp_err_t light_brightness_post_handler(httpd_req_t *req)
     buf[total_len] = '\0';
 
     cJSON *root = cJSON_Parse(buf);
-    int red = cJSON_GetObjectItem(root, "red")->valueint;
-    int green = cJSON_GetObjectItem(root, "green")->valueint;
-    int blue = cJSON_GetObjectItem(root, "blue")->valueint;
-    ESP_LOGI(REST_TAG, "Light control: red = %d, green = %d, blue = %d", red, green, blue);
+    char* before = cJSON_GetObjectItem(root, "before")->valuestring;
+    char* after = cJSON_GetObjectItem(root, "after")->valuestring;
+    ESP_LOGI(REST_TAG, "before: %s, after: %s", before, after);
     cJSON_Delete(root);
     httpd_resp_sendstr(req, "Post control value successfully");
+    return ESP_OK;
+}
+
+static esp_err_t file_control_list_handler(httpd_req_t *req)
+{
+    cJSON *root = cJSON_CreateObject();
+    // cJSON_AddStringToObject(root, "version", IDF_VER);
+
+    cJSON *files = cJSON_AddArrayToObject(root, "files");
+    
+
+    DIR *d;
+    struct dirent *dir;
+    d = opendir("/sdcard");
+    if (d) {
+        while ((dir = readdir(d)) != NULL) {
+            if (dir->d_type == DT_REG) {
+                cJSON_AddItemToArray(files, cJSON_CreateString(dir->d_name));
+                printf("%s\n", dir->d_name);
+            }
+        }
+        closedir(d);
+    }
+
+
+    const char *sys_info = cJSON_Print(root);
+    httpd_resp_sendstr(req, sys_info);
+    free((void *)sys_info);
+    cJSON_Delete(root);
     return ESP_OK;
 }
 
@@ -181,6 +214,8 @@ esp_err_t start_rest_server(const char *base_path)
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
 
+    /////////////////////////// REGISTERING HANDLERS ///////////////////////////
+
     /* URI handler for fetching system info */
     httpd_uri_t system_info_get_uri = {
         .uri = "/api/v1/system/info",
@@ -199,14 +234,23 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &temperature_data_get_uri);
 
-    /* URI handler for light brightness control */
-    httpd_uri_t light_brightness_post_uri = {
-        .uri = "/api/v1/light/brightness",
-        .method = HTTP_POST,
-        .handler = light_brightness_post_handler,
+    /* URI handler for file list */
+    httpd_uri_t file_control_list_post_uri = {
+        .uri = "/api/v1/files/list",
+        .method = HTTP_GET,
+        .handler = file_control_list_handler,
         .user_ctx = rest_context
     };
-    httpd_register_uri_handler(server, &light_brightness_post_uri);
+    httpd_register_uri_handler(server, &file_control_list_post_uri);
+
+    /* URI handler for file rename */
+    httpd_uri_t file_control_rename_post_uri = {
+        .uri = "/api/v1/files/rename",
+        .method = HTTP_POST,
+        .handler = file_control_rename_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &file_control_rename_post_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {
