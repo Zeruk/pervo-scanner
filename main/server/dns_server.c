@@ -87,7 +87,7 @@ void receive_thread(void *pvParameters) {
             data[length] = '\0';
 
             inet_ntop(AF_INET, &(client.sin_addr), ipAddress, INET_ADDRSTRLEN);
-            ESP_LOGI(TAG, "Replying to DNS request (len=%d) from %s", length, ipAddress);
+            // ESP_LOGI(TAG, "Replying to DNS request (len=%d) from %s", length, ipAddress);
 
             // Prepare our response
             response[0] = data[0];

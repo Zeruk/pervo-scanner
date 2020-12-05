@@ -16,7 +16,7 @@
 #include <dirent.h> 
 #include <stdio.h> 
 
-static const char *REST_TAG = "esp-rest";
+static const char *REST_TAG = "REST";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
     do                                                                                 \
     {                                                                                  \
