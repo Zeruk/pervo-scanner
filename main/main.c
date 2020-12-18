@@ -28,13 +28,11 @@
 #define CHIP_NAME "ESP32-S2 Beta"
 #endif
 
-
 #define CONFIG_FREERTOS_HZ 100
 #define CONFIG_ESP32_DEFAULT_CPU_FREQ_240 y
 #define CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ 240
 
 static const char *TAG = "Main";
-
 
 void app_main(void)
 {
@@ -44,16 +42,15 @@ void app_main(void)
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
     printf("This is %s chip with %d CPU cores, WiFi%s%s, ",
-            CHIP_NAME,
-            chip_info.cores,
-            (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-            (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
+           CHIP_NAME,
+           chip_info.cores,
+           (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
+           (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
 
     printf("silicon revision %d, ", chip_info.revision);
 
     printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
-            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
+           (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
@@ -77,26 +74,23 @@ void app_main(void)
 
     // }
 
-
-   
-
     vTaskDelay(100 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "Initialize YDLIiDAR");
     // YdlidarController.init();
     // YdlidarController.start();
 
-    
-     ESP_LOGI(TAG, "Initialize SDCard");
+    ESP_LOGI(TAG, "Initialize SDCard");
     SDCard.init();
     while (SDCard.state < 1)
     {
         vTaskDelay(500 / portTICK_PERIOD_MS);
         SDCard.init();
-    } 
-    
+    }
+
     YdlidarController.fileWriteFunction = SDCard.writeFile;
     SDCard.newFile("/sdcard/scan1.xyz");
-    while(SDCard.state != 2) {
+    while (SDCard.state != 2)
+    {
         ESP_LOGE(TAG, "Error creating file");
         vTaskDelay(500 / portTICK_PERIOD_MS);
         SDCard.newFile("/sdcard/scan1.xyz");
@@ -108,10 +102,10 @@ void app_main(void)
 
     SDCard.closeFile();
     // SDCard.unmountCard();
-    while(1){
+    while (1)
+    {
         vTaskDelay(10000 / portTICK_PERIOD_MS);
     };
-    
 
     printf("Restarting now.\n");
     fflush(stdout);
