@@ -265,6 +265,7 @@ static esp_err_t scan_control_handler(httpd_req_t *req)
     else if (NULL != strstr(req->uri, "stop"))
     {
         YdlidarController.stop();
+        SDCard.closeFile();
         httpd_resp_sendstr(req, "{\"status\":\"ok\"}");
         return ESP_OK;
     }
