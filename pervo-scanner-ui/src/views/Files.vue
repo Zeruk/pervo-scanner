@@ -12,6 +12,9 @@
 </template>
 
 <script>
+import axios from 'axios'
+
+
 export default {
   data() {
     return {
@@ -25,8 +28,14 @@ export default {
   },
   methods: {
     download(fname) {
-      window.open(`/${process.env.VUE_APP_BASE_URL}/download/${fname}`, '_self');
+      window.open(`/${fname}`, '_self');
+    },
+    updateFiles() {
+      axios.get(`/api/v1/files/list`)
     }
+  },
+  mounted() {
+    this.updateFiles()
   }
 }
 </script>
