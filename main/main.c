@@ -75,17 +75,14 @@ void app_main(void)
     // }
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
-    ESP_LOGI(TAG, "Initialize YDLIiDAR");
-    // YdlidarController.init();
-    // YdlidarController.start();
 
     ESP_LOGI(TAG, "Initialize SDCard");
-    SDCard.init();
-    while (SDCard.state < 1)
-    {
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-        SDCard.init();
-    }
+    // SDCard.init();
+    // while (SDCard.state < 1)
+    // {
+    //     vTaskDelay(500 / portTICK_PERIOD_MS);
+    //     SDCard.init();
+    // }
 
     YdlidarController.fileWriteFunction = SDCard.writeFile;
     SDCard.newFile("/sdcard/scan1.xyz");

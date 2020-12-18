@@ -17,6 +17,8 @@
 #include <stdio.h>
 
 #include "uln2003.h"
+#include "sdCard.h"
+#include "ydlidar.h"
 
 static const char *REST_TAG = "REST";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
@@ -170,6 +172,14 @@ static esp_err_t file_control_rename_handler(httpd_req_t *req)
 
 static esp_err_t file_control_list_handler(httpd_req_t *req)
 {
+    if (SDCard.state < 1)
+        SDCard.init();
+    if (SDCard.state < 1)
+    {
+        esp_err_thttpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "{\"error\": 2,\"desc\":\"Can't access SD card\"}");
+        return ESP_OK;
+    }
+
     cJSON *root = cJSON_CreateObject();
     // cJSON_AddStringToObject(root, "version", IDF_VER);
 
@@ -227,6 +237,50 @@ static esp_err_t temperature_data_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t scan_control_handler(httpd_req_t *req)
+{
+    // TODO: add SDCARD newfile counter
+    // [backward|forward|stop]
+    ESP_LOGI(TAG, "Initialize YdlidarController");
+    YdlidarController.init();
+    if (NULL != strstr(req->uri, "start"))
+    {
+        if (SDCard.state < 1)
+            SDCard.init();
+        if (SDCard.state < 1)
+        {
+            esp_err_thttpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "{\"error\": 2,\"desc\":\"Can't access SD card\"}");
+            return ESP_OK;
+        }
+        SDCard.newFile("/sdcard/scan1.xyz");
+        if (SDCard.state < 2)
+        {
+            esp_err_thttpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "{\"error\": 2,\"desc\":\"Can't create file\"}");
+            return ESP_OK;
+        }
+        // TODO: Add capacitor near YDLidar
+        YdlidarController.start();
+        // TODO: Add rotation position lookup, disable YDLidar after
+    }
+    else if (NULL != strstr(req->uri, "stop"))
+    {
+        YdlidarController.stop();
+        httpd_resp_sendstr(req, "{\"status\":\"ok\"}");
+        return ESP_OK;
+    }
+    else
+    { //status
+        httpd_resp_set_type(req, "application/json");
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddNumberToObject(root, "progress", StepperControl.progress);
+        const char *status = cJSON_Print(root);
+        httpd_resp_sendstr(req, status);
+        free((void *)status);
+        cJSON_Delete(root);
+        return ESP_OK;
+    }
+}
+
 static esp_err_t rotate_control_handler(httpd_req_t *req)
 {
     // [backward|forward|stop]
@@ -281,19 +335,17 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx = rest_context};
     httpd_register_uri_handler(server, &temperature_data_get_uri);
 
-    // /api/v1/scan/status
-    // /api/v1/scan/start
-    // /api/v1/scan/stop
+    // /api/v1/scan/[start|status|stop]
     // /api/v1/rotate/[backward|forward|stop]
-    // /api/v1/files/list
+    // /api/v1/files/list // TODO: if not connected to SDCARD, show err message
 
-    // /* /api/v1/scan/stop */
-    // httpd_uri_t scan_stop_post_uri = {
-    //     .uri = "/api/v1/rotate/*",
-    //     .method = HTTP_POST,
-    //     .handler = scan_stop_handler,
-    //     .user_ctx = rest_context};
-    // httpd_register_uri_handler(server, &scan_stop_post_uri);
+    /* /api/v1/scan/stop */
+    httpd_uri_t scan_stop_post_uri = {
+        .uri = "/api/v1/scan/*",
+        .method = HTTP_POST,
+        .handler = scan_control_handler,
+        .user_ctx = rest_context};
+    httpd_register_uri_handler(server, &scan_stop_post_uri);
 
     /* /api/v1/rotate/[backward|forward|stop] */
     httpd_uri_t rotate_control_post_uri = {

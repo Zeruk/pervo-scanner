@@ -27,7 +27,7 @@ export default {
   methods: {
     scanStatusUpdate() {
       axios.get('/api/v1/scan/status').then(res => {
-        this.scanProcess = res.data.process
+        this.scanProcess = res.data.progress
       }).catch()
     },
     startScan() {
