@@ -1,19 +1,16 @@
 module.exports = {
-  lintOnSave: false,
-
   css: {
     loaderOptions: {
       stylus: {
-        "resolve url": true,
-        import: []
+        'resolve url': true,
+        'import': []
       }
     }
   },
-
   pluginOptions: {
-    "cube-ui": {
+    'cube-ui': {
       postCompile: false,
       theme: false
     }
   }
-};
+}
